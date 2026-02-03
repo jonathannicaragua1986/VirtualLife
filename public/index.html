@@ -225,134 +225,223 @@
                 setMessages([]);
             };
 
-            // Respuestas más humanas y variadas
-            const getResponse = (input) => {
-                const text = input.toLowerCase();
+            // Respuestas conversacionales e inteligentes
+            const getResponse = (input, messageHistory) => {
+                const text = input.toLowerCase().trim();
+                const words = text.split(/\s+/);
 
                 // Función para elegir respuesta aleatoria
                 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-                // Saludos
-                if (text.match(/hola|hi|hey|buenas|saludos|qué tal|como estas/)) {
+                // Detectar si mencionan el nombre María
+                const mentionsMaria = text.includes('maria') || text.includes('maría');
+
+                // Analizar intención del mensaje
+                const isGreeting = text.match(/^(hola|hi|hey|buenas?|buenos|saludos|qué tal|que tal|como est[aá]s|buen dia|buen día|buenas tardes|buenas noches)/i);
+                const isQuestion = text.includes('?') || text.match(/^(que|qué|cual|cuál|como|cómo|donde|dónde|cuando|cuándo|cuanto|cuánto|por que|por qué|quien|quién)/);
+                const isShortMessage = words.length <= 3;
+                const isAffirmative = text.match(/^(si|sí|ok|okay|dale|claro|va|vamos|listo|perfecto|bueno|esta bien|está bien|de acuerdo|por supuesto|obvio|seguro|eso|correcto|exacto|así es)$/i);
+                const isNegative = text.match(/^(no|nop|nope|nel|para nada|negativo|tampoco|nunca)$/i);
+
+                // Obtener último mensaje del bot para contexto
+                const lastBotMessage = messageHistory && messageHistory.length > 0
+                    ? messageHistory.filter(m => m.type === 'bot').slice(-1)[0]?.text || ''
+                    : '';
+                const wasAskingAboutReservation = lastBotMessage.toLowerCase().includes('reserv') || lastBotMessage.toLowerCase().includes('whatsapp') || lastBotMessage.toLowerCase().includes('apartar');
+                const wasAskingQuestion = lastBotMessage.includes('?');
+
+                // === SALUDOS (con o sin nombre) ===
+                if (isGreeting || (isShortMessage && mentionsMaria && !isQuestion)) {
+                    const greetingResponses = [
+                        '¡Hola! Qué gusto saludarte. Cuéntame, ¿en qué te puedo ayudar hoy?',
+                        '¡Hola! Me da gusto atenderte. ¿Qué te trae por aquí? ¿Buscas info sobre nuestras experiencias VR?',
+                        '¡Hey! Bienvenido. Estoy aquí para ayudarte. ¿Qué necesitas saber?',
+                        '¡Hola! Soy María del equipo de Virtual Life. Cuéntame qué te gustaría saber.',
+                    ];
+                    if (mentionsMaria) {
+                        return pick([
+                            '¡Hola! Qué lindo que me saludes por mi nombre. Cuéntame, ¿en qué te puedo ayudar?',
+                            '¡Hola! Aquí estoy para ayudarte. ¿Qué necesitas saber sobre Virtual Life?',
+                            '¡Hey! Un gusto. Dime, ¿qué te gustaría saber? ¿Precios, horarios, juegos...?'
+                        ]);
+                    }
+                    return pick(greetingResponses);
+                }
+
+                // === RESPUESTAS AFIRMATIVAS (depende del contexto) ===
+                if (isAffirmative) {
+                    if (wasAskingAboutReservation) {
+                        setTimeout(() => {
+                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                        }, 1000);
+                        return 'Perfecto, te paso con mi compañero Carlos por WhatsApp para que concrete tu reserva. ¡Te va a encantar la experiencia!';
+                    }
                     return pick([
-                        '¡Hola! Qué gusto saludarte. ¿Vienes a conocer nuestras experiencias de realidad virtual o ya tienes algo en mente?',
-                        '¡Hey! Me da mucho gusto atenderte. Cuéntame, ¿es tu primera vez con nosotros?',
-                        '¡Hola! Bienvenido a Virtual Life. Estoy aquí para ayudarte con cualquier duda que tengas.'
+                        '¡Genial! ¿Hay algo más en lo que te pueda ayudar?',
+                        'Perfecto. ¿Qué más te gustaría saber?',
+                        '¡Excelente! Estoy aquí si necesitas más información.'
                     ]);
                 }
 
-                // Precios
-                if (text.match(/precio|costo|cuánto|tarifa|cuanto vale|cuanto cuesta|cuanto sale/)) {
+                // === RESPUESTAS NEGATIVAS ===
+                if (isNegative) {
+                    if (wasAskingQuestion) {
+                        return pick([
+                            'No hay problema. ¿Hay algo más en lo que te pueda ayudar?',
+                            'Entendido. ¿Tienes alguna otra duda?',
+                            'Ok, sin problema. ¿Necesitas información sobre algo más?'
+                        ]);
+                    }
+                    return 'Entendido. Cuéntame entonces, ¿qué te gustaría saber?';
+                }
+
+                // === PREGUNTAS SOBRE QUIÉN ES / CONVERSACIONALES ===
+                if (text.match(/quien eres|quién eres|eres real|eres humana|eres robot|eres bot|eres una persona|como te llamas|cómo te llamas/)) {
                     return pick([
-                        'Claro, te cuento sobre nuestras tarifas:\n\n• 30 minutos: $15,000 por persona\n• 1 hora: $25,000 (es el más popular)\n• 1 hora y media: $35,000\n\nTodos incluyen instructor y acceso a más de 50 juegos. ¿Te interesa alguno en particular?',
-                        'Con gusto te ayudo con eso. Manejamos sesiones de 30 min ($15,000), 1 hora ($25,000) o 90 min ($35,000). La de 1 hora es la favorita de nuestros clientes porque te da tiempo de probar varios juegos. ¿Cuántas personas serían?'
+                        'Soy María, trabajo en el área de atención al cliente de Virtual Life. Llevo más de un año aquí y me encanta ayudar a la gente a descubrir la realidad virtual. ¿En qué te puedo ayudar?',
+                        'Me llamo María, soy parte del equipo de Virtual Life. Estoy aquí para resolver tus dudas y ayudarte a vivir una experiencia increíble. ¿Qué te gustaría saber?'
                     ]);
                 }
 
-                // Horarios
-                if (text.match(/horario|hora|abre|cierra|cuando|abierto|abren|cierran/)) {
+                // === CÓMO ESTÁS / CONVERSACIÓN CASUAL ===
+                if (text.match(/como est[aá]s|cómo est[aá]s|que tal est[aá]s|cómo te va|como te va|todo bien|qué onda|que onda/)) {
                     return pick([
-                        'Nuestros horarios son:\n\nLunes a Jueves: 12:00 pm a 10:00 pm\nViernes: 12:00 pm a 12:00 am\nSábado: 10:00 am a 1:00 am\nDomingo: 10:00 am a 11:00 pm\n\n¿Te gustaría que te agendara un turno?',
-                        'Estamos abiertos todos los días. Entre semana abrimos a las 12 del día, y fines de semana desde las 10 de la mañana. Los viernes y sábados cerramos más tarde por si quieres venir de noche. ¿Cuándo te gustaría visitarnos?'
+                        '¡Muy bien, gracias por preguntar! Aquí atendiendo con todo el gusto. ¿Y tú cómo estás? ¿Buscas algo en especial?',
+                        '¡Todo excelente! Gracias por preguntar. Cuéntame, ¿qué te trae por aquí?',
+                        '¡De maravilla! Listo para ayudarte. ¿Qué necesitas saber?'
                     ]);
                 }
 
-                // Reservar
-                if (text.match(/reserv|turno|apartar|agendar|book|cita/)) {
+                // === PRECIOS ===
+                if (text.match(/precio|costo|cuánto|cuanto|tarifa|vale|cuesta|sale|cobran|pagan|pago|dinero|plata|lana/)) {
                     return pick([
-                        'Perfecto, para reservar te puedo pasar directamente con mi compañero por WhatsApp y así confirmas tu turno más rápido. ¿Te parece bien? Solo dime "sí" y te redirijo.',
-                        'Con gusto te ayudo a apartar tu lugar. Lo más fácil es que hables con mi equipo por WhatsApp para que te confirmen disponibilidad al momento. ¿Quieres que te conecte?'
+                        'Claro que sí. Mira, manejamos tres opciones:\n\n• 30 min → $15,000 por persona\n• 1 hora → $25,000 (el más popular)\n• 1 hora y media → $35,000\n\nTodo incluye instructor y +50 juegos. ¿Para cuántas personas sería?',
+                        'Con gusto te explico. Tenemos sesiones de 30 min ($15,000), 1 hora ($25,000) y 90 min ($35,000). La mayoría elige 1 hora porque alcanzas a probar varios juegos. ¿Te interesa alguno?'
                     ]);
                 }
 
-                // Confirmación de WhatsApp
-                if (text.match(/^si$|^sí$|^ok$|^dale$|^claro$|^va$|whatsapp|whats|conecta|redirige|pasa/)) {
-                    setTimeout(() => {
-                        openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
-                    }, 1000);
-                    return 'Perfecto, te estoy pasando con mi compañero Carlos por WhatsApp. Él te ayudará a confirmar tu reserva. ¡Que la pases increíble!';
-                }
-
-                // Juegos
-                if (text.match(/juego|game|que hay|que tienen|catalogo|lista|que puedo jugar/)) {
+                // === HORARIOS ===
+                if (text.match(/horario|hora|abre|cierra|abierto|abren|cierran|atienden|trabajan|disponible/)) {
                     return pick([
-                        'Tenemos de todo un poco. Los más solicitados son:\n\n• Beat Saber - para amantes de la música\n• Arizona Sunshine 2 - zombies, muy intenso\n• Phasmophobia - terror con amigos\n• Gorilla Tag - súper divertido para grupos\n• Batman VR - el nuevo exclusivo\n\n¿Qué tipo de experiencia te llama más la atención?',
-                        'Nuestra biblioteca tiene más de 50 títulos. Desde juegos de ritmo hasta terror extremo. ¿Vienes con familia, amigos o en plan de pareja? Así te recomiendo mejor.'
+                        'Nuestros horarios:\n\n• Lunes a Jueves: 12pm a 10pm\n• Viernes: 12pm a 12am\n• Sábado: 10am a 1am\n• Domingo: 10am a 11pm\n\n¿Cuándo te gustaría venir?',
+                        'Abrimos todos los días. Entre semana desde las 12, y fines de semana desde las 10am. Los viernes y sábados cerramos más tarde. ¿Qué día tienes en mente?'
                     ]);
                 }
 
-                // Terror
-                if (text.match(/terror|miedo|susto|phasmophobia|horror/)) {
-                    return 'Si te gusta la adrenalina, Phasmophobia es imperdible. Entras a casas embrujadas a buscar fantasmas... pero ellos también te buscan a ti. Solo lo recomiendo para mayores de 14 años y personas sin problemas cardíacos. ¿Te arriesgas?';
-                }
-
-                // Cumpleaños
-                if (text.match(/cumple|fiesta|party|celebr|evento|niño|hijo|hija/)) {
+                // === RESERVAR ===
+                if (text.match(/reserv|apartar|agendar|turno|cita|book|ir|visitar|quiero ir|vamos a ir|queremos ir/)) {
                     return pick([
-                        'Hacemos muchos cumpleaños y siempre salen felices. Tenemos dos opciones:\n\n• Pack Estándar: 1 hora de juego + sala privada para pastel ($18,000/niño)\n• Pack VIP: 1.5 horas + torneo + pizza + regalo para el cumpleañero ($28,000/niño)\n\n¿Para qué edad sería y cuántos invitados calculas?',
-                        'Los cumples aquí son súper divertidos. Los niños terminan contando la experiencia por semanas. Tenemos paquetes desde $18,000 por niño que incluyen sala privada. ¿Es para niño o niña y de qué edad?'
+                        '¡Genial que quieras venir! Para reservar, te paso con mi compañero por WhatsApp y te confirma disponibilidad al momento. ¿Te parece?',
+                        'Perfecto, me encanta. La forma más rápida es por WhatsApp, ahí te confirman el turno en segundos. ¿Quieres que te conecte?'
                     ]);
                 }
 
-                // Ubicación
-                if (text.match(/dónde|donde|ubicacion|direccion|llegar|como llego|mapa|locacion/)) {
-                    return 'Estamos en Av. Corrientes 1234, Buenos Aires. Es muy fácil llegar: la estación de subte más cercana es la Línea B. También hay estacionamiento público a media cuadra. ¿Necesitas que te mande la ubicación por WhatsApp?';
-                }
-
-                // Edad
-                if (text.match(/edad|años|chico|pequeño|menor|niños pueden/)) {
-                    return 'Lo recomendamos a partir de los 8 años porque el casco necesita ajustarse bien. Para juegos de terror, sugerimos mínimo 14 años. Los cascos son ajustables así que no hay problema con diferentes tamaños de cabeza. ¿Es para tu hijo/a?';
-                }
-
-                // Mareo
-                if (text.match(/mareo|marea|vomit|náusea|enfermo|marear/)) {
-                    return 'Tranquilo, en nuestra Arena Free Roam casi nadie se marea porque tu cuerpo se mueve junto con el juego. Además tenemos juegos "suaves" para empezar. Si es tu primera vez, te guío con títulos de baja intensidad primero.';
-                }
-
-                // Anteojos
-                if (text.match(/anteojos|lentes|gafas|vista|miope/)) {
-                    return 'Sí, puedes usar tus anteojos normales. Nuestros cascos Quest 3 tienen un espaciador especial para que entren sin problema y no te incomode. Muchos de nuestros clientes los usan sin problemas.';
-                }
-
-                // Primera vez
-                if (text.match(/primera vez|nunca|probado|experiencia previa|principiante/)) {
-                    return 'No te preocupes, el 80% de la gente que viene no ha jugado VR antes. Nuestros instructores te enseñan todo en 5 minutos antes de empezar. Es súper intuitivo, ya verás que le agarras rápido.';
-                }
-
-                // Tecnología
-                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless|calidad/)) {
-                    return 'Usamos cascos Meta Quest 3, que son lo último en tecnología. Son totalmente inalámbricos (sin cables que te estorben), con resolución 4K y un campo de visión increíble. La Arena Free Roam tiene más de 200 metros cuadrados para moverte libremente.';
-                }
-
-                // Grupo/amigos
-                if (text.match(/grupo|amigos|varios|cuantos|equipo|team/)) {
-                    return 'La Arena soporta hasta 10 jugadores simultáneos, ideal para grupos de amigos o team buildings. Si son más, podemos organizar turnos. ¿Cuántos serían y para qué fecha tienen pensado?';
-                }
-
-                // Corporativo
-                if (text.match(/empresa|corporativo|team building|trabajo|oficina/)) {
-                    return 'Hacemos muchos eventos corporativos. Es una experiencia muy diferente al típico after office. Podemos armar torneos privados, incluir catering... Te puedo pasar con nuestro coordinador de eventos para darte detalles. ¿Te interesa?';
-                }
-
-                // Gracias
-                if (text.match(/gracias|thank|genial|perfecto|excelente|buenisimo|chevere/)) {
+                // === JUEGOS ===
+                if (text.match(/juego|game|que hay|qué hay|que tienen|qué tienen|catalogo|catálogo|lista|jugar|puedo jugar|opciones|títulos/)) {
                     return pick([
-                        '¡A ti por escribirnos! Cualquier otra duda, aquí estoy. ¡Esperamos verte pronto por acá!',
-                        'Con mucho gusto. Si tienes más preguntas, no dudes en escribirme. ¡Te esperamos!',
-                        '¡De nada! Fue un placer ayudarte. Que tengas excelente día.'
+                        'Tenemos +50 juegos para todos los gustos:\n\n• Beat Saber → música y ritmo\n• Arizona Sunshine 2 → zombies, intenso\n• Phasmophobia → terror con amigos\n• Gorilla Tag → viral, muy divertido\n• Batman VR → el más nuevo\n\n¿Qué tipo de experiencia te llama la atención?',
+                        'Nuestra biblioteca es enorme. Hay de acción, terror, música, deportes, aventura... ¿Vienes solo, con amigos o familia? Así te recomiendo mejor.'
                     ]);
                 }
 
-                // Despedida
-                if (text.match(/chao|adios|bye|hasta luego|nos vemos/)) {
-                    return '¡Hasta pronto! Fue un gusto atenderte. Cuando quieras reservar o tengas más dudas, aquí estaré. ¡Que tengas un excelente día!';
+                // === TERROR / MIEDO ===
+                if (text.match(/terror|miedo|susto|phasmophobia|horror|asustar|fantasma/)) {
+                    return 'Si buscas adrenalina, Phasmophobia es increíble. Investigas casas embrujadas con tus amigos y los fantasmas realmente te persiguen. Solo para mayores de 14 años y gente sin problemas del corazón. ¿Te animas?';
                 }
 
-                // Default - respuesta más humana
+                // === CUMPLEAÑOS / FIESTAS ===
+                if (text.match(/cumple|fiesta|party|celebr|niño|niña|hijo|hija|pequeño|chico|festej/)) {
+                    return pick([
+                        'Los cumpleaños aquí son memorables. Tenemos:\n\n• Pack Estándar: $18,000/niño (1hr + sala privada)\n• Pack VIP: $28,000/niño (1.5hrs + pizza + regalo)\n\n¿Para qué edad sería y cuántos invitados?',
+                        'Hacemos muchos cumples y todos salen felices. ¿Es para niño o niña? ¿Y más o menos cuántos invitados serían?'
+                    ]);
+                }
+
+                // === UBICACIÓN ===
+                if (text.match(/donde|dónde|ubicacion|ubicación|direccion|dirección|llegar|llego|queda|encuentran|mapa|localiz/)) {
+                    return 'Estamos en Av. Corrientes 1234, Buenos Aires. Muy fácil de llegar: cerca del subte Línea B y hay estacionamiento a media cuadra. ¿Quieres que te mande la ubicación exacta por WhatsApp?';
+                }
+
+                // === EDAD MÍNIMA ===
+                if (text.match(/edad|años|menor|pequeño|chiquito|niños pueden|desde que edad|limite de edad/)) {
+                    return 'Lo recomendamos desde los 8 años para que el casco ajuste bien. Para juegos de terror, mínimo 14 años. Los cascos se ajustan a diferentes tamaños de cabeza. ¿Para quién sería?';
+                }
+
+                // === MAREO ===
+                if (text.match(/mareo|mare[ao]|vomit|náusea|nausea|enferm|malestar/)) {
+                    return 'Tranquilo, en nuestra Arena Free Roam casi nadie se marea porque caminas físicamente, no solo con el control. Además empezamos con juegos suaves si es tu primera vez.';
+                }
+
+                // === ANTEOJOS ===
+                if (text.match(/anteojos|lentes|gafas|vista|miope|astigmat|óptic/)) {
+                    return 'Sí, puedes usar tus lentes normales sin problema. Los cascos Quest 3 tienen espaciadores especiales para eso. Muchos clientes los usan.';
+                }
+
+                // === PRIMERA VEZ ===
+                if (text.match(/primera vez|nunca|probado|nuevo|principiante|experiencia|no sé|no se|nervios/)) {
+                    return 'No te preocupes, el 80% de nuestros clientes nunca han jugado VR antes. Nuestros instructores te explican todo en 5 minutos. Es súper intuitivo, ya verás.';
+                }
+
+                // === TECNOLOGÍA ===
+                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless|calidad|resoluci|pantalla|gráfic/)) {
+                    return 'Usamos Meta Quest 3, lo más nuevo del mercado. Son totalmente inalámbricos, con resolución 4K+. La Arena tiene 200m² para moverte libremente. ¡Es otra cosa!';
+                }
+
+                // === GRUPOS ===
+                if (text.match(/grupo|amigos|varios|cuantos pueden|cuántos pueden|juntos|todos|equipo/)) {
+                    return 'En la Arena pueden jugar hasta 10 personas al mismo tiempo. Si son más, organizamos turnos. ¿Cuántos serían?';
+                }
+
+                // === CORPORATIVO ===
+                if (text.match(/empresa|corporativo|team building|trabajo|oficina|empleados|compañeros/)) {
+                    return 'Hacemos muchos eventos corporativos. Es genial para team building: torneos, competencias, y podemos incluir catering. ¿Te paso con nuestro coordinador de eventos?';
+                }
+
+                // === GRACIAS ===
+                if (text.match(/gracias|thank|te lo agradezco|muy amable|excelente|genial|perfecto|buenísimo|buenisimo|chevere|chévere|cool|increíble|increible/)) {
+                    return pick([
+                        '¡Con mucho gusto! ¿Hay algo más en lo que te pueda ayudar?',
+                        '¡A ti por escribirme! Si tienes más dudas, aquí estoy. ¡Espero verte pronto!',
+                        '¡De nada! Fue un placer ayudarte. ¡Que tengas excelente día!'
+                    ]);
+                }
+
+                // === DESPEDIDA ===
+                if (text.match(/chao|adiós|adios|bye|hasta luego|nos vemos|me voy|ya me voy|hasta pronto|cuídate|cuidate/)) {
+                    return pick([
+                        '¡Hasta luego! Fue un gusto atenderte. Cuando quieras, aquí estaré. ¡Cuídate!',
+                        '¡Nos vemos! Espero verte pronto por Virtual Life. ¡Que te vaya súper!',
+                        '¡Chao! Gracias por escribir. ¡Que tengas un excelente día!'
+                    ]);
+                }
+
+                // === QUEJAS / PROBLEMAS ===
+                if (text.match(/problema|queja|mal servicio|molest|enojado|no me gust|reclamo/)) {
+                    return 'Lamento mucho escuchar eso. Cuéntame qué pasó y veré cómo te puedo ayudar. Tu satisfacción es muy importante para nosotros.';
+                }
+
+                // === MENSAJES MUY CORTOS ===
+                if (words.length === 1) {
+                    const singleWord = words[0];
+                    if (singleWord.match(/^(vr|realidad|virtual)$/)) {
+                        return '¡Sí, somos un centro de realidad virtual! ¿Qué te gustaría saber? ¿Precios, juegos, o quieres reservar?';
+                    }
+                    if (singleWord.match(/^(info|información|informacion)$/)) {
+                        return 'Claro, ¿qué información necesitas? Puedo contarte sobre precios, horarios, juegos, cumpleaños, o cómo llegar.';
+                    }
+                    return pick([
+                        '¿Me puedes dar un poco más de detalle? Así te ayudo mejor.',
+                        '¿Qué te gustaría saber exactamente?',
+                        'Cuéntame más, ¿sobre qué necesitas información?'
+                    ]);
+                }
+
+                // === DEFAULT - Conversación natural ===
                 return pick([
-                    'Mmm, no estoy segura de entender bien tu pregunta. ¿Me podrías dar más detalles? Puedo ayudarte con información sobre precios, horarios, juegos, cumpleaños o hacer tu reservación.',
-                    'Disculpa, no capté bien. ¿Me lo podrías explicar de otra forma? Estoy aquí para ayudarte con cualquier duda sobre Virtual Life.',
-                    'Perdona, creo que no entendí. ¿Quieres saber sobre nuestros precios, horarios, los juegos que tenemos, o te ayudo a reservar?'
+                    'Mmm, no estoy segura de entender bien. ¿Me lo explicas de otra forma? Puedo ayudarte con precios, horarios, juegos, cumpleaños o reservaciones.',
+                    'No capté del todo. Cuéntame más específicamente qué necesitas saber y con gusto te ayudo.',
+                    'Disculpa, no entendí bien. ¿Quieres saber sobre nuestros servicios, precios, o te ayudo a reservar?',
+                    'Perdón, no te entendí. ¿Me puedes explicar qué estás buscando? Estoy para ayudarte.'
                 ]);
             };
 
@@ -360,7 +449,8 @@
                 if (!inputValue.trim() || chatState !== 'connected') return;
 
                 const userMessage = { type: 'user', text: inputValue };
-                setMessages(prev => [...prev, userMessage]);
+                const updatedMessages = [...messages, userMessage];
+                setMessages(updatedMessages);
                 const currentInput = inputValue;
                 setInputValue('');
                 setIsTyping(true);
@@ -368,7 +458,7 @@
                 // Tiempo de respuesta variable para parecer más humano
                 const thinkingTime = 1200 + Math.random() * 1500;
                 setTimeout(() => {
-                    const botResponse = getResponse(currentInput);
+                    const botResponse = getResponse(currentInput, updatedMessages);
                     setMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
                     setIsTyping(false);
                 }, thinkingTime);
