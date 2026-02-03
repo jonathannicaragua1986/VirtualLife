@@ -445,7 +445,7 @@
                 ]);
             };
 
-            const handleSend = () => {
+            const handleSend = async () => {
                 if (!inputValue.trim() || chatState !== 'connected') return;
 
                 const userMessage = { type: 'user', text: inputValue };
@@ -455,13 +455,38 @@
                 setInputValue('');
                 setIsTyping(true);
 
-                // Tiempo de respuesta variable para parecer más humano
-                const thinkingTime = 1200 + Math.random() * 1500;
-                setTimeout(() => {
-                    const botResponse = getResponse(currentInput, updatedMessages);
-                    setMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
-                    setIsTyping(false);
-                }, thinkingTime);
+                try {
+                    // Llamar a la API del chatbot con IA
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: currentInput,
+                            history: updatedMessages
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    // Detectar si la respuesta menciona WhatsApp para redirigir
+                    const botText = data.response;
+                    if (botText.toLowerCase().includes('whatsapp') && currentInput.toLowerCase().match(/^(si|sí|ok|dale|claro|va)$/)) {
+                        setTimeout(() => {
+                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                        }, 1500);
+                    }
+
+                    setMessages(prev => [...prev, { type: 'bot', text: botText }]);
+                } catch (error) {
+                    console.error('Error en chat:', error);
+                    // Fallback a respuesta local si falla la API
+                    const fallbackResponse = getResponse(currentInput, updatedMessages);
+                    setMessages(prev => [...prev, { type: 'bot', text: fallbackResponse }]);
+                }
+
+                setIsTyping(false);
             };
 
             const handleKeyPress = (e) => {
