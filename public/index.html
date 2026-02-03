@@ -176,112 +176,202 @@
             );
         };
 
-        // --- COMPONENTE CHATBOT INTELIGENTE ---
+        // --- COMPONENTE CHATBOT CON PERSONALIDAD HUMANA ---
         const ChatBot = ({ openWhatsApp }) => {
             const [isOpen, setIsOpen] = useState(false);
-            const [messages, setMessages] = useState([
-                { type: 'bot', text: '¡Hola! 👋 Soy VirtuBot, tu asistente de Virtual Life. ¿En qué puedo ayudarte hoy?' }
-            ]);
+            const [chatState, setChatState] = useState('closed'); // closed, connecting, connected
+            const [messages, setMessages] = useState([]);
             const [inputValue, setInputValue] = useState('');
             const [isTyping, setIsTyping] = useState(false);
             const messagesEndRef = useRef(null);
+
+            // Información del agente
+            const agent = {
+                name: 'María',
+                role: 'Servicio al Cliente',
+                image: 'maria-agente.png'
+            };
 
             // Scroll automático al último mensaje
             useEffect(() => {
                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, [messages]);
 
-            // Base de conocimiento del chatbot
+            // Efecto de conexión al abrir el chat
+            useEffect(() => {
+                if (isOpen && chatState === 'closed') {
+                    setChatState('connecting');
+                    // Simular conexión
+                    setTimeout(() => {
+                        setChatState('connected');
+                        // Mensaje de bienvenida personalizado
+                        const hour = new Date().getHours();
+                        let greeting = 'Buenas tardes';
+                        if (hour < 12) greeting = 'Buenos días';
+                        if (hour >= 19) greeting = 'Buenas noches';
+
+                        setMessages([{
+                            type: 'bot',
+                            text: `¡${greeting}! Soy María, del equipo de Virtual Life. ¿En qué puedo ayudarte hoy?`
+                        }]);
+                    }, 2000);
+                }
+            }, [isOpen]);
+
+            // Cerrar chat
+            const handleClose = () => {
+                setIsOpen(false);
+                setChatState('closed');
+                setMessages([]);
+            };
+
+            // Respuestas más humanas y variadas
             const getResponse = (input) => {
                 const text = input.toLowerCase();
 
+                // Función para elegir respuesta aleatoria
+                const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
                 // Saludos
-                if (text.match(/hola|hi|hey|buenas|saludos|qué tal/)) {
-                    return '¡Hola! 👋 Bienvenido a Virtual Life. ¿Te gustaría saber sobre nuestros juegos, precios, o hacer una reservación?';
+                if (text.match(/hola|hi|hey|buenas|saludos|qué tal|como estas/)) {
+                    return pick([
+                        '¡Hola! Qué gusto saludarte. ¿Vienes a conocer nuestras experiencias de realidad virtual o ya tienes algo en mente?',
+                        '¡Hey! Me da mucho gusto atenderte. Cuéntame, ¿es tu primera vez con nosotros?',
+                        '¡Hola! Bienvenido a Virtual Life. Estoy aquí para ayudarte con cualquier duda que tengas.'
+                    ]);
                 }
 
                 // Precios
-                if (text.match(/precio|costo|cuánto|tarifa|cuanto vale|cuanto cuesta/)) {
-                    return '💰 **Nuestros precios:**\n\n• 30 min → $15,000/jugador\n• 60 min → $25,000/jugador (más popular)\n• 90 min → $35,000/jugador\n\nTodos incluyen acceso a +50 juegos e instructor. ¿Te gustaría reservar?';
+                if (text.match(/precio|costo|cuánto|tarifa|cuanto vale|cuanto cuesta|cuanto sale/)) {
+                    return pick([
+                        'Claro, te cuento sobre nuestras tarifas:\n\n• 30 minutos: $15,000 por persona\n• 1 hora: $25,000 (es el más popular)\n• 1 hora y media: $35,000\n\nTodos incluyen instructor y acceso a más de 50 juegos. ¿Te interesa alguno en particular?',
+                        'Con gusto te ayudo con eso. Manejamos sesiones de 30 min ($15,000), 1 hora ($25,000) o 90 min ($35,000). La de 1 hora es la favorita de nuestros clientes porque te da tiempo de probar varios juegos. ¿Cuántas personas serían?'
+                    ]);
                 }
 
                 // Horarios
-                if (text.match(/horario|hora|abre|cierra|cuando|abierto/)) {
-                    return '🕐 **Horarios:**\n\n• Lun-Jue: 12:00 - 22:00\n• Viernes: 12:00 - 00:00\n• Sábado: 10:00 - 01:00\n• Domingo: 10:00 - 23:00\n\n¿Quieres reservar un turno?';
+                if (text.match(/horario|hora|abre|cierra|cuando|abierto|abren|cierran/)) {
+                    return pick([
+                        'Nuestros horarios son:\n\nLunes a Jueves: 12:00 pm a 10:00 pm\nViernes: 12:00 pm a 12:00 am\nSábado: 10:00 am a 1:00 am\nDomingo: 10:00 am a 11:00 pm\n\n¿Te gustaría que te agendara un turno?',
+                        'Estamos abiertos todos los días. Entre semana abrimos a las 12 del día, y fines de semana desde las 10 de la mañana. Los viernes y sábados cerramos más tarde por si quieres venir de noche. ¿Cuándo te gustaría visitarnos?'
+                    ]);
                 }
 
                 // Reservar
-                if (text.match(/reserv|turno|apartar|agendar|book/)) {
-                    return '📅 ¡Perfecto! Para reservar, te puedo conectar directamente con nuestro equipo por WhatsApp. ¿Quieres que te redirija? Solo responde "sí" o haz clic en el botón de WhatsApp.';
+                if (text.match(/reserv|turno|apartar|agendar|book|cita/)) {
+                    return pick([
+                        'Perfecto, para reservar te puedo pasar directamente con mi compañero por WhatsApp y así confirmas tu turno más rápido. ¿Te parece bien? Solo dime "sí" y te redirijo.',
+                        'Con gusto te ayudo a apartar tu lugar. Lo más fácil es que hables con mi equipo por WhatsApp para que te confirmen disponibilidad al momento. ¿Quieres que te conecte?'
+                    ]);
                 }
 
-                // WhatsApp/Sí para reservar
-                if (text.match(/^si$|^sí$|whatsapp|whats|conecta|redirige/)) {
+                // Confirmación de WhatsApp
+                if (text.match(/^si$|^sí$|^ok$|^dale$|^claro$|^va$|whatsapp|whats|conecta|redirige|pasa/)) {
                     setTimeout(() => {
-                        openWhatsApp('Hola! Quiero reservar una sesión de VR');
-                    }, 500);
-                    return '✅ ¡Perfecto! Te estoy redirigiendo a WhatsApp para completar tu reserva... 📱';
+                        openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                    }, 1000);
+                    return 'Perfecto, te estoy pasando con mi compañero Carlos por WhatsApp. Él te ayudará a confirmar tu reserva. ¡Que la pases increíble!';
                 }
 
                 // Juegos
-                if (text.match(/juego|game|qué hay|catalogo|lista|beat saber|zombie|terror|miedo/)) {
-                    return '🎮 **Tenemos +50 juegos:**\n\n• Beat Saber (música)\n• Arizona Sunshine 2 (zombies)\n• Phasmophobia (terror)\n• Gorilla Tag (viral)\n• Batman VR (acción)\n• Y muchos más!\n\n¿Qué género te interesa?';
+                if (text.match(/juego|game|que hay|que tienen|catalogo|lista|que puedo jugar/)) {
+                    return pick([
+                        'Tenemos de todo un poco. Los más solicitados son:\n\n• Beat Saber - para amantes de la música\n• Arizona Sunshine 2 - zombies, muy intenso\n• Phasmophobia - terror con amigos\n• Gorilla Tag - súper divertido para grupos\n• Batman VR - el nuevo exclusivo\n\n¿Qué tipo de experiencia te llama más la atención?',
+                        'Nuestra biblioteca tiene más de 50 títulos. Desde juegos de ritmo hasta terror extremo. ¿Vienes con familia, amigos o en plan de pareja? Así te recomiendo mejor.'
+                    ]);
+                }
+
+                // Terror
+                if (text.match(/terror|miedo|susto|phasmophobia|horror/)) {
+                    return 'Si te gusta la adrenalina, Phasmophobia es imperdible. Entras a casas embrujadas a buscar fantasmas... pero ellos también te buscan a ti. Solo lo recomiendo para mayores de 14 años y personas sin problemas cardíacos. ¿Te arriesgas?';
                 }
 
                 // Cumpleaños
-                if (text.match(/cumple|fiesta|party|niño|celebr|evento/)) {
-                    return '🎂 **Paquetes de Cumpleaños:**\n\n• Pack Standard: $18,000/niño (1hr juego + sala privada)\n• Pack Epic VIP: $28,000/niño (1.5hr + pizza party + regalo)\n\n¿Cuántos invitados serían?';
+                if (text.match(/cumple|fiesta|party|celebr|evento|niño|hijo|hija/)) {
+                    return pick([
+                        'Hacemos muchos cumpleaños y siempre salen felices. Tenemos dos opciones:\n\n• Pack Estándar: 1 hora de juego + sala privada para pastel ($18,000/niño)\n• Pack VIP: 1.5 horas + torneo + pizza + regalo para el cumpleañero ($28,000/niño)\n\n¿Para qué edad sería y cuántos invitados calculas?',
+                        'Los cumples aquí son súper divertidos. Los niños terminan contando la experiencia por semanas. Tenemos paquetes desde $18,000 por niño que incluyen sala privada. ¿Es para niño o niña y de qué edad?'
+                    ]);
                 }
 
                 // Ubicación
-                if (text.match(/dónde|donde|ubicacion|direccion|llegar|mapa/)) {
-                    return '📍 Estamos en:\n**Av. Corrientes 1234, Buenos Aires**\n\nPuedes llegar en subte (Línea B) o hay estacionamiento cerca. ¿Necesitas más indicaciones?';
+                if (text.match(/dónde|donde|ubicacion|direccion|llegar|como llego|mapa|locacion/)) {
+                    return 'Estamos en Av. Corrientes 1234, Buenos Aires. Es muy fácil llegar: la estación de subte más cercana es la Línea B. También hay estacionamiento público a media cuadra. ¿Necesitas que te mande la ubicación por WhatsApp?';
                 }
 
                 // Edad
-                if (text.match(/edad|años|niños|pequeños|menores/)) {
-                    return '👶 **Edad mínima:**\n• Recomendamos desde 8 años\n• Juegos de terror: +14 años\n• Los cascos son ajustables\n\n¿Tienes alguna otra pregunta?';
+                if (text.match(/edad|años|chico|pequeño|menor|niños pueden/)) {
+                    return 'Lo recomendamos a partir de los 8 años porque el casco necesita ajustarse bien. Para juegos de terror, sugerimos mínimo 14 años. Los cascos son ajustables así que no hay problema con diferentes tamaños de cabeza. ¿Es para tu hijo/a?';
                 }
 
                 // Mareo
-                if (text.match(/mareo|marea|vómito|náusea|enfermo/)) {
-                    return '🌀 En nuestra Free Roam Arena casi no hay mareos porque tu cuerpo se mueve igual que en el juego. También tenemos juegos de baja intensidad para principiantes.';
+                if (text.match(/mareo|marea|vomit|náusea|enfermo|marear/)) {
+                    return 'Tranquilo, en nuestra Arena Free Roam casi nadie se marea porque tu cuerpo se mueve junto con el juego. Además tenemos juegos "suaves" para empezar. Si es tu primera vez, te guío con títulos de baja intensidad primero.';
                 }
 
-                // Anteojos/lentes
-                if (text.match(/anteojos|lentes|gafas|vista/)) {
-                    return '👓 ¡Sí! Nuestros cascos Meta Quest 3 tienen espaciadores especiales para usar con anteojos recetados sin problemas.';
+                // Anteojos
+                if (text.match(/anteojos|lentes|gafas|vista|miope/)) {
+                    return 'Sí, puedes usar tus anteojos normales. Nuestros cascos Quest 3 tienen un espaciador especial para que entren sin problema y no te incomode. Muchos de nuestros clientes los usan sin problemas.';
+                }
+
+                // Primera vez
+                if (text.match(/primera vez|nunca|probado|experiencia previa|principiante/)) {
+                    return 'No te preocupes, el 80% de la gente que viene no ha jugado VR antes. Nuestros instructores te enseñan todo en 5 minutos antes de empezar. Es súper intuitivo, ya verás que le agarras rápido.';
                 }
 
                 // Tecnología
-                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless/)) {
-                    return '🥽 **Nuestra tecnología:**\n• Cascos Meta Quest 3\n• 100% Wireless (sin cables)\n• Resolución 4K+\n• Free Roam Arena de 200m²\n\n¡Tecnología de punta!';
+                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless|calidad/)) {
+                    return 'Usamos cascos Meta Quest 3, que son lo último en tecnología. Son totalmente inalámbricos (sin cables que te estorben), con resolución 4K y un campo de visión increíble. La Arena Free Roam tiene más de 200 metros cuadrados para moverte libremente.';
+                }
+
+                // Grupo/amigos
+                if (text.match(/grupo|amigos|varios|cuantos|equipo|team/)) {
+                    return 'La Arena soporta hasta 10 jugadores simultáneos, ideal para grupos de amigos o team buildings. Si son más, podemos organizar turnos. ¿Cuántos serían y para qué fecha tienen pensado?';
+                }
+
+                // Corporativo
+                if (text.match(/empresa|corporativo|team building|trabajo|oficina/)) {
+                    return 'Hacemos muchos eventos corporativos. Es una experiencia muy diferente al típico after office. Podemos armar torneos privados, incluir catering... Te puedo pasar con nuestro coordinador de eventos para darte detalles. ¿Te interesa?';
                 }
 
                 // Gracias
-                if (text.match(/gracias|thanks|genial|perfecto|excelente/)) {
-                    return '😊 ¡Con gusto! Si tienes más preguntas, aquí estoy. ¡Te esperamos en Virtual Life! 🎮';
+                if (text.match(/gracias|thank|genial|perfecto|excelente|buenisimo|chevere/)) {
+                    return pick([
+                        '¡A ti por escribirnos! Cualquier otra duda, aquí estoy. ¡Esperamos verte pronto por acá!',
+                        'Con mucho gusto. Si tienes más preguntas, no dudes en escribirme. ¡Te esperamos!',
+                        '¡De nada! Fue un placer ayudarte. Que tengas excelente día.'
+                    ]);
                 }
 
-                // Default
-                return '🤔 No estoy seguro de entender tu pregunta. Puedo ayudarte con:\n\n• Precios y tarifas\n• Horarios\n• Juegos disponibles\n• Cumpleaños y eventos\n• Reservaciones\n\n¿Sobre qué te gustaría saber?';
+                // Despedida
+                if (text.match(/chao|adios|bye|hasta luego|nos vemos/)) {
+                    return '¡Hasta pronto! Fue un gusto atenderte. Cuando quieras reservar o tengas más dudas, aquí estaré. ¡Que tengas un excelente día!';
+                }
+
+                // Default - respuesta más humana
+                return pick([
+                    'Mmm, no estoy segura de entender bien tu pregunta. ¿Me podrías dar más detalles? Puedo ayudarte con información sobre precios, horarios, juegos, cumpleaños o hacer tu reservación.',
+                    'Disculpa, no capté bien. ¿Me lo podrías explicar de otra forma? Estoy aquí para ayudarte con cualquier duda sobre Virtual Life.',
+                    'Perdona, creo que no entendí. ¿Quieres saber sobre nuestros precios, horarios, los juegos que tenemos, o te ayudo a reservar?'
+                ]);
             };
 
             const handleSend = () => {
-                if (!inputValue.trim()) return;
+                if (!inputValue.trim() || chatState !== 'connected') return;
 
-                // Agregar mensaje del usuario
                 const userMessage = { type: 'user', text: inputValue };
                 setMessages(prev => [...prev, userMessage]);
+                const currentInput = inputValue;
                 setInputValue('');
                 setIsTyping(true);
 
-                // Simular respuesta del bot
+                // Tiempo de respuesta variable para parecer más humano
+                const thinkingTime = 1200 + Math.random() * 1500;
                 setTimeout(() => {
-                    const botResponse = getResponse(inputValue);
+                    const botResponse = getResponse(currentInput);
                     setMessages(prev => [...prev, { type: 'bot', text: botResponse }]);
                     setIsTyping(false);
-                }, 800 + Math.random() * 700);
+                }, thinkingTime);
             };
 
             const handleKeyPress = (e) => {
@@ -292,7 +382,7 @@
             };
 
             // Opciones rápidas
-            const quickOptions = ['💰 Precios', '🕐 Horarios', '🎮 Juegos', '📅 Reservar'];
+            const quickOptions = ['Precios', 'Horarios', 'Juegos', 'Reservar'];
 
             return (
                 <>
@@ -304,87 +394,141 @@
                     >
                         {isOpen ? <X size={28} className="text-white" /> : <MessageCircle size={28} className="text-white" />}
                         {!isOpen && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></span>
+                            <>
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></span>
+                                <span className="absolute -top-8 right-0 bg-black/80 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap animate-bounce">
+                                    ¿Necesitas ayuda?
+                                </span>
+                            </>
                         )}
                     </button>
 
                     {/* Ventana del chat */}
                     {isOpen && (
-                        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-48px)] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
-                            {/* Header */}
+                        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
+                            {/* Header con foto del agente */}
                             <div className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 flex items-center gap-3">
-                                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                                    <Bot size={24} className="text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-white font-bold">VirtuBot</h3>
-                                    <p className="text-white/70 text-xs">Asistente de Virtual Life</p>
-                                </div>
-                                <div className="ml-auto flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                    <span className="text-xs text-white/70">Online</span>
-                                </div>
-                            </div>
-
-                            {/* Mensajes */}
-                            <div className="h-80 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#0a0a0a]">
-                                {messages.map((msg, idx) => (
-                                    <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.type === 'user' ? 'bg-cyan-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
-                                            {msg.text}
-                                        </div>
-                                    </div>
-                                ))}
-                                {isTyping && (
-                                    <div className="flex justify-start">
-                                        <div className="bg-white/10 p-3 rounded-2xl rounded-bl-sm">
-                                            <div className="flex gap-1">
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                <div ref={messagesEndRef} />
-                            </div>
-
-                            {/* Opciones rápidas */}
-                            <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide border-t border-white/5">
-                                {quickOptions.map((opt, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => {
-                                            setInputValue(opt.split(' ')[1]);
-                                            setTimeout(() => handleSend(), 100);
-                                        }}
-                                        className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all whitespace-nowrap"
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Input */}
-                            <div className="p-4 border-t border-white/10 bg-[#111]">
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onKeyPress={handleKeyPress}
-                                        placeholder="Escribe tu pregunta..."
-                                        className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-500 outline-none transition-colors"
+                                <div className="relative">
+                                    <img
+                                        src={agent.image}
+                                        alt={agent.name}
+                                        className="w-12 h-12 rounded-full border-2 border-white object-cover"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
                                     />
-                                    <button
-                                        onClick={handleSend}
-                                        disabled={!inputValue.trim()}
-                                        className="w-12 h-12 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
-                                    >
-                                        <Send size={20} className="text-black" />
-                                    </button>
+                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
                                 </div>
+                                <div className="flex-1">
+                                    <h3 className="text-white font-bold">{agent.name}</h3>
+                                    <p className="text-white/70 text-xs">{agent.role} • Virtual Life</p>
+                                </div>
+                                <button onClick={handleClose} className="text-white/70 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
                             </div>
+
+                            {/* Estado de conexión */}
+                            {chatState === 'connecting' && (
+                                <div className="h-80 flex flex-col items-center justify-center bg-[#0a0a0a] gap-4">
+                                    <img
+                                        src={agent.image}
+                                        alt={agent.name}
+                                        className="w-20 h-20 rounded-full border-4 border-cyan-500 object-cover animate-pulse"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                    <div className="text-center">
+                                        <p className="text-white font-semibold">Conectando con {agent.name}...</p>
+                                        <p className="text-gray-400 text-sm">Servicio al Cliente</p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Mensajes - solo cuando está conectado */}
+                            {chatState === 'connected' && (
+                                <>
+                                    <div className="h-80 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#0a0a0a]">
+                                        {messages.map((msg, idx) => (
+                                            <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} gap-2`}>
+                                                {msg.type === 'bot' && (
+                                                    <img
+                                                        src={agent.image}
+                                                        alt={agent.name}
+                                                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                )}
+                                                <div className={`max-w-[75%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.type === 'user' ? 'bg-cyan-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
+                                                    {msg.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isTyping && (
+                                            <div className="flex justify-start gap-2">
+                                                <img
+                                                    src={agent.image}
+                                                    alt={agent.name}
+                                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                                <div className="bg-white/10 p-3 rounded-2xl rounded-bl-sm">
+                                                    <div className="flex gap-1 items-center">
+                                                        <span className="text-gray-400 text-xs mr-2">María está escribiendo</span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div ref={messagesEndRef} />
+                                    </div>
+
+                                    {/* Opciones rápidas */}
+                                    <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide border-t border-white/5">
+                                        {quickOptions.map((opt, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setInputValue(opt);
+                                                    setTimeout(() => {
+                                                        const btn = document.getElementById('chat-send-btn');
+                                                        if (btn) btn.click();
+                                                    }, 100);
+                                                }}
+                                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all whitespace-nowrap"
+                                            >
+                                                {opt}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Input */}
+                                    <div className="p-4 border-t border-white/10 bg-[#111]">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={inputValue}
+                                                onChange={(e) => setInputValue(e.target.value)}
+                                                onKeyPress={handleKeyPress}
+                                                placeholder="Escribe tu mensaje..."
+                                                className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-500 outline-none transition-colors"
+                                            />
+                                            <button
+                                                id="chat-send-btn"
+                                                onClick={handleSend}
+                                                disabled={!inputValue.trim()}
+                                                className="w-12 h-12 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
+                                            >
+                                                <Send size={20} className="text-black" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </>
