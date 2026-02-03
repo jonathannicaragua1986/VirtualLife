@@ -28,10 +28,10 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://unpkg.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://unpkg.com", "https://va.vercel-scripts.com"],
             imgSrc: ["'self'", "data:", "https:", "http:"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            connectSrc: ["'self'", "https://wa.me", "https://generativelanguage.googleapis.com"],
+            connectSrc: ["'self'", "https://wa.me", "https://generativelanguage.googleapis.com", "https://va.vercel-scripts.com"],
             frameSrc: ["'self'", "https://www.google.com"],
         },
     },
