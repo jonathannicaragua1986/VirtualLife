@@ -62,6 +62,18 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Ruta de diagnóstico del chatbot
+app.get('/api/chat-status', (req, res) => {
+    const hasApiKey = !!process.env.GEMINI_API_KEY;
+    const apiKeyLength = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0;
+    res.json({
+        geminiConfigured: hasApiKey,
+        apiKeyLength: apiKeyLength,
+        status: hasApiKey ? 'Gemini AI activo' : 'Usando respuestas locales',
+        nodeVersion: process.version
+    });
+});
+
 // Ruta para información del negocio (ejemplo de API)
 app.get('/api/info', (req, res) => {
     res.json({
@@ -171,6 +183,9 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
 
+        console.log('=== CHAT REQUEST ===');
+        console.log('Message:', message);
+
         if (!message) {
             return res.status(400).json({ error: 'El mensaje es requerido' });
         }
@@ -178,8 +193,11 @@ app.post('/api/chat', async (req, res) => {
         // Verificar si hay API key de Gemini configurada
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-        if (!GEMINI_API_KEY) {
-            // Fallback a respuestas locales si no hay API key
+        console.log('API Key exists:', !!GEMINI_API_KEY);
+        console.log('API Key length:', GEMINI_API_KEY ? GEMINI_API_KEY.length : 0);
+
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === '') {
+            console.log('No API key found, using fallback');
             return res.json({
                 response: getFallbackResponse(message),
                 source: 'local'
@@ -187,61 +205,88 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Construir el historial de conversación para Gemini
-        const conversationHistory = history?.map(msg => ({
+        const conversationHistory = history?.filter(msg => msg.type === 'user' || msg.type === 'bot').map(msg => ({
             role: msg.type === 'user' ? 'user' : 'model',
             parts: [{ text: msg.text }]
         })) || [];
 
+        console.log('Calling Gemini API...');
+
         // Llamar a la API de Gemini
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        const requestBody = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [{ text: BUSINESS_CONTEXT }]
+                },
+                {
+                    role: 'model',
+                    parts: [{ text: '¡Entendido! Soy María de Virtual Life. Estoy lista para ayudar a los clientes de forma natural y amigable.' }]
+                },
+                ...conversationHistory,
+                {
+                    role: 'user',
+                    parts: [{ text: message }]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.9,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 350,
+            },
+            safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+        };
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [{ text: BUSINESS_CONTEXT }]
-                    },
-                    {
-                        role: 'model',
-                        parts: [{ text: '¡Entendido! Soy María de Virtual Life. Estoy lista para ayudar a los clientes.' }]
-                    },
-                    ...conversationHistory,
-                    {
-                        role: 'user',
-                        parts: [{ text: message }]
-                    }
-                ],
-                generationConfig: {
-                    temperature: 0.8,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 300,
-                }
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
 
-        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+        console.log('Gemini response status:', response.status);
+        console.log('Gemini response has candidates:', !!data.candidates);
+
+        if (data.error) {
+            console.error('Gemini API Error:', data.error);
             return res.json({
-                response: data.candidates[0].content.parts[0].text,
+                response: getFallbackResponse(message),
+                source: 'local-error'
+            });
+        }
+
+        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+            const geminiResponse = data.candidates[0].content.parts[0].text;
+            console.log('Gemini response:', geminiResponse.substring(0, 100) + '...');
+            return res.json({
+                response: geminiResponse,
                 source: 'gemini'
             });
         } else {
-            // Fallback si Gemini no responde correctamente
+            console.log('No valid candidates in response, using fallback');
+            console.log('Full response:', JSON.stringify(data));
             return res.json({
                 response: getFallbackResponse(message),
-                source: 'local'
+                source: 'local-no-candidates'
             });
         }
 
     } catch (error) {
-        console.error('Error en chatbot:', error);
+        console.error('Error en chatbot:', error.message);
+        console.error('Stack:', error.stack);
         return res.json({
-            response: 'Disculpa, tuve un problema técnico. ¿Me puedes repetir tu pregunta?',
+            response: getFallbackResponse(req.body?.message || ''),
             source: 'error'
         });
     }
