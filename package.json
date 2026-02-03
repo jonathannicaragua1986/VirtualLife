@@ -1,22 +1,26 @@
 {
-  "name": "virtuallife-vr",
-  "version": "1.0.0",
-  "description": "VIRTUAL LIFE - Centro de Realidad Virtual Profesional",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "keywords": ["vr", "virtual-reality", "gaming", "entertainment"],
-  "author": "Virtual Life",
-  "license": "MIT",
-  "dependencies": {
-    "express": "^4.18.2",
-    "compression": "^1.7.4",
-    "helmet": "^7.1.0",
-    "cors": "^2.8.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+    "name": "virtuallife-vr",
+    "version": "1.0.0",
+    "description": "VIRTUAL LIFE - Centro de Realidad Virtual Profesional",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node server.js"
+    },
+    "keywords": [
+        "vr",
+        "virtual-reality",
+        "gaming",
+        "entertainment"
+    ],
+    "author": "Virtual Life",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2",
+        "compression": "^1.7.4",
+        "helmet": "^7.1.0",
+        "cors": "^2.8.5"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
 }
