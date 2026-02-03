@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIRTUAL LIFE - Centro de Realidad Virtual | VR Experience</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description"
+        content="VIRTUAL LIFE: El centro de Realidad Virtual más avanzado. Free Roam Arena sin cables, VR Stations con +50 juegos. Cumpleaños, eventos corporativos y experiencias únicas.">
+    <meta name="keywords"
+        content="realidad virtual, VR, virtual reality, gaming, cumpleaños VR, eventos corporativos, Meta Quest 3">
+    <meta name="author" content="VIRTUAL LIFE">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="VIRTUAL LIFE - Centro de Realidad Virtual">
+    <meta property="og:description"
+        content="No juegues el juego. Vive la realidad. El centro VR más avanzado con Free Roam Arena y +50 juegos.">
+    <meta property="og:image" content="image_02a7fd.jpg.png">
+    <meta property="og:url" content="https://virtuallife.com">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="VIRTUAL LIFE - VR Experience">
+    <meta name="twitter:description" content="No juegues el juego. Vive la realidad.">
+
+    <!-- Security Headers via Meta -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="image_02a7fd.jpg.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React & ReactDOM (Production) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Estilos personalizados para scrollbar oculta y animaciones */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes fade-in-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fade-in-up 0.8s ease-out forwards;
+        }
+
+        /* Skip to content for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #06b6d4;
+            color: black;
+            padding: 8px 16px;
+            z-index: 100;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+            top: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-[#0a0a0a]">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONOS SVG INTEGRADOS ---
+        const IconWrapper = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        // Iconos individuales
+        const Menu = (props) => <IconWrapper {...props}><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></IconWrapper>;
+        const X = (props) => <IconWrapper {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></IconWrapper>;
+        const Users = (props) => <IconWrapper {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></IconWrapper>;
+        const Zap = (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconWrapper>;
+        const ChevronRight = (props) => <IconWrapper {...props}><path d="m9 18 6-6-6-6" /></IconWrapper>;
+        const Star = (props) => <IconWrapper {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></IconWrapper>;
+        const Gamepad2 = (props) => <IconWrapper {...props}><line x1="6" x2="10" y1="12" y2="12" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="15" x2="15.01" y1="13" y2="13" /><line x1="18" x2="18.01" y1="11" y2="11" /><rect width="20" height="12" x="2" y="6" rx="2" /></IconWrapper>;
+        const Ghost = (props) => <IconWrapper {...props}><path d="M9 10h.01" /><path d="M15 10h.01" /><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" /></IconWrapper>;
+        const Crosshair = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><line x1="22" x2="18" y1="12" y2="12" /><line x1="6" x2="2" y1="12" y2="12" /><line x1="12" x2="12" y1="6" y2="2" /><line x1="12" x2="12" y1="22" y2="18" /></IconWrapper>;
+        const Music = (props) => <IconWrapper {...props}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></IconWrapper>;
+        const Smile = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /></IconWrapper>;
+        const Monitor = (props) => <IconWrapper {...props}><rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" /></IconWrapper>;
+        const Calendar = (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></IconWrapper>;
+        const Gift = (props) => <IconWrapper {...props}><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></IconWrapper>;
+        const CreditCard = (props) => <IconWrapper {...props}><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></IconWrapper>;
+        const HelpCircle = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></IconWrapper>;
+        const ChevronDown = (props) => <IconWrapper {...props}><path d="m6 9 6 6 6-6" /></IconWrapper>;
+        const MapPin = (props) => <IconWrapper {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></IconWrapper>;
+        const Phone = (props) => <IconWrapper {...props}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></IconWrapper>;
+        const Mail = (props) => <IconWrapper {...props}><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></IconWrapper>;
+        const Instagram = (props) => <IconWrapper {...props}><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></IconWrapper>;
+        const Facebook = (props) => <IconWrapper {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></IconWrapper>;
+        const Cpu = (props) => <IconWrapper {...props}><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" /><path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" /></IconWrapper>;
+        const Wifi = (props) => <IconWrapper {...props}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconWrapper>;
+        const MessageCircle = (props) => <IconWrapper {...props}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></IconWrapper>;
+        const Send = (props) => <IconWrapper {...props}><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></IconWrapper>;
+        const Bot = (props) => <IconWrapper {...props}><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></IconWrapper>;
+
+        // --- COMPONENTE LOGO INTELIGENTE (Soluciona el problema de la imagen) ---
+        const SmartLogo = ({ size = "w-14 h-14 md:w-16 md:h-16" }) => {
+            const [src, setSrc] = useState("image_02a7fd.jpg"); // Intento 1
+            const [errorCount, setErrorCount] = useState(0);
+            const [hasError, setHasError] = useState(false);
+
+            const handleError = () => {
+                if (errorCount === 0) {
+                    // Si falla .jpg, intentamos .jpg.png (común en Windows con extensiones ocultas)
+                    setSrc("image_02a7fd.jpg.png");
+                    setErrorCount(1);
+                } else if (errorCount === 1) {
+                    // Si falla eso, intentamos solo .png
+                    setSrc("image_02a7fd.png");
+                    setErrorCount(2);
+                } else {
+                    // Si todo falla, mostramos el icono
+                    setHasError(true);
+                }
+            };
+
+            if (hasError) {
+                return (
+                    <div className={`relative ${size} bg-black border border-cyan-400 p-2 rounded-full flex items-center justify-center`}>
+                        <Users className="text-cyan-400" size={24} />
+                    </div>
+                );
+            }
+
+            return (
+                <div className="relative group cursor-pointer">
+                    <div className="absolute inset-0 bg-cyan-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
+                    <img
+                        src={src}
+                        alt="VIRTUAL LIFE Logo"
+                        className={`relative ${size} rounded-full border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] object-cover bg-black`}
+                        onError={handleError}
+                    />
+                </div>
+            );
+        };
+
+        // --- COMPONENTE CHATBOT CON PERSONALIDAD HUMANA ---
+        const ChatBot = ({ openWhatsApp }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [chatState, setChatState] = useState('closed'); // closed, connecting, connected
+            const [messages, setMessages] = useState([]);
+            const [inputValue, setInputValue] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            // Información del agente
+            const agent = {
+                name: 'María',
+                role: 'Servicio al Cliente',
+                image: 'maria-agente.png'
+            };
+
+            // Scroll automático al último mensaje
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            // Efecto de conexión al abrir el chat
+            useEffect(() => {
+                if (isOpen && chatState === 'closed') {
+                    setChatState('connecting');
+                    // Simular conexión
+                    setTimeout(() => {
+                        setChatState('connected');
+                        // Mensaje de bienvenida personalizado
+                        const hour = new Date().getHours();
+                        let greeting = 'Buenas tardes';
+                        if (hour < 12) greeting = 'Buenos días';
+                        if (hour >= 19) greeting = 'Buenas noches';
+
+                        setMessages([{
+                            type: 'bot',
+                            text: `¡${greeting}! Soy María, del equipo de Virtual Life. ¿En qué puedo ayudarte hoy?`
+                        }]);
+                    }, 2000);
+                }
+            }, [isOpen]);
+
+            // Cerrar chat
+            const handleClose = () => {
+                setIsOpen(false);
+                setChatState('closed');
+                setMessages([]);
+            };
+
+            // Respuestas conversacionales e inteligentes
+            const getResponse = (input, messageHistory) => {
+                const text = input.toLowerCase().trim();
+                const words = text.split(/\s+/);
+
+                // Función para elegir respuesta aleatoria
+                const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+                // Detectar si mencionan el nombre María
+                const mentionsMaria = text.includes('maria') || text.includes('maría');
+
+                // Analizar intención del mensaje
+                const isGreeting = text.match(/^(hola|hi|hey|buenas?|buenos|saludos|qué tal|que tal|como est[aá]s|buen dia|buen día|buenas tardes|buenas noches)/i);
+                const isQuestion = text.includes('?') || text.match(/^(que|qué|cual|cuál|como|cómo|donde|dónde|cuando|cuándo|cuanto|cuánto|por que|por qué|quien|quién)/);
+                const isShortMessage = words.length <= 3;
+                const isAffirmative = text.match(/^(si|sí|ok|okay|dale|claro|va|vamos|listo|perfecto|bueno|esta bien|está bien|de acuerdo|por supuesto|obvio|seguro|eso|correcto|exacto|así es)$/i);
+                const isNegative = text.match(/^(no|nop|nope|nel|para nada|negativo|tampoco|nunca)$/i);
+
+                // Obtener último mensaje del bot para contexto
+                const lastBotMessage = messageHistory && messageHistory.length > 0
+                    ? messageHistory.filter(m => m.type === 'bot').slice(-1)[0]?.text || ''
+                    : '';
+                const wasAskingAboutReservation = lastBotMessage.toLowerCase().includes('reserv') || lastBotMessage.toLowerCase().includes('whatsapp') || lastBotMessage.toLowerCase().includes('apartar');
+                const wasAskingQuestion = lastBotMessage.includes('?');
+
+                // === SALUDOS (con o sin nombre) ===
+                if (isGreeting || (isShortMessage && mentionsMaria && !isQuestion)) {
+                    const greetingResponses = [
+                        '¡Hola! Qué gusto saludarte. Cuéntame, ¿en qué te puedo ayudar hoy?',
+                        '¡Hola! Me da gusto atenderte. ¿Qué te trae por aquí? ¿Buscas info sobre nuestras experiencias VR?',
+                        '¡Hey! Bienvenido. Estoy aquí para ayudarte. ¿Qué necesitas saber?',
+                        '¡Hola! Soy María del equipo de Virtual Life. Cuéntame qué te gustaría saber.',
+                    ];
+                    if (mentionsMaria) {
+                        return pick([
+                            '¡Hola! Qué lindo que me saludes por mi nombre. Cuéntame, ¿en qué te puedo ayudar?',
+                            '¡Hola! Aquí estoy para ayudarte. ¿Qué necesitas saber sobre Virtual Life?',
+                            '¡Hey! Un gusto. Dime, ¿qué te gustaría saber? ¿Precios, horarios, juegos...?'
+                        ]);
+                    }
+                    return pick(greetingResponses);
+                }
+
+                // === RESPUESTAS AFIRMATIVAS (depende del contexto) ===
+                if (isAffirmative) {
+                    if (wasAskingAboutReservation) {
+                        setTimeout(() => {
+                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                        }, 1000);
+                        return 'Perfecto, te paso con mi compañero Carlos por WhatsApp para que concrete tu reserva. ¡Te va a encantar la experiencia!';
+                    }
+                    return pick([
+                        '¡Genial! ¿Hay algo más en lo que te pueda ayudar?',
+                        'Perfecto. ¿Qué más te gustaría saber?',
+                        '¡Excelente! Estoy aquí si necesitas más información.'
+                    ]);
+                }
+
+                // === RESPUESTAS NEGATIVAS ===
+                if (isNegative) {
+                    if (wasAskingQuestion) {
+                        return pick([
+                            'No hay problema. ¿Hay algo más en lo que te pueda ayudar?',
+                            'Entendido. ¿Tienes alguna otra duda?',
+                            'Ok, sin problema. ¿Necesitas información sobre algo más?'
+                        ]);
+                    }
+                    return 'Entendido. Cuéntame entonces, ¿qué te gustaría saber?';
+                }
+
+                // === PREGUNTAS SOBRE QUIÉN ES / CONVERSACIONALES ===
+                if (text.match(/quien eres|quién eres|eres real|eres humana|eres robot|eres bot|eres una persona|como te llamas|cómo te llamas/)) {
+                    return pick([
+                        'Soy María, trabajo en el área de atención al cliente de Virtual Life. Llevo más de un año aquí y me encanta ayudar a la gente a descubrir la realidad virtual. ¿En qué te puedo ayudar?',
+                        'Me llamo María, soy parte del equipo de Virtual Life. Estoy aquí para resolver tus dudas y ayudarte a vivir una experiencia increíble. ¿Qué te gustaría saber?'
+                    ]);
+                }
+
+                // === CÓMO ESTÁS / CONVERSACIÓN CASUAL ===
+                if (text.match(/como est[aá]s|cómo est[aá]s|que tal est[aá]s|cómo te va|como te va|todo bien|qué onda|que onda/)) {
+                    return pick([
+                        '¡Muy bien, gracias por preguntar! Aquí atendiendo con todo el gusto. ¿Y tú cómo estás? ¿Buscas algo en especial?',
+                        '¡Todo excelente! Gracias por preguntar. Cuéntame, ¿qué te trae por aquí?',
+                        '¡De maravilla! Listo para ayudarte. ¿Qué necesitas saber?'
+                    ]);
+                }
+
+                // === PRECIOS ===
+                if (text.match(/precio|costo|cuánto|cuanto|tarifa|vale|cuesta|sale|cobran|pagan|pago|dinero|plata|lana/)) {
+                    return pick([
+                        'Claro que sí. Mira, manejamos tres opciones:\n\n• 30 min → $15,000 por persona\n• 1 hora → $25,000 (el más popular)\n• 1 hora y media → $35,000\n\nTodo incluye instructor y +50 juegos. ¿Para cuántas personas sería?',
+                        'Con gusto te explico. Tenemos sesiones de 30 min ($15,000), 1 hora ($25,000) y 90 min ($35,000). La mayoría elige 1 hora porque alcanzas a probar varios juegos. ¿Te interesa alguno?'
+                    ]);
+                }
+
+                // === HORARIOS ===
+                if (text.match(/horario|hora|abre|cierra|abierto|abren|cierran|atienden|trabajan|disponible/)) {
+                    return pick([
+                        'Nuestros horarios:\n\n• Lunes a Jueves: 12pm a 10pm\n• Viernes: 12pm a 12am\n• Sábado: 10am a 1am\n• Domingo: 10am a 11pm\n\n¿Cuándo te gustaría venir?',
+                        'Abrimos todos los días. Entre semana desde las 12, y fines de semana desde las 10am. Los viernes y sábados cerramos más tarde. ¿Qué día tienes en mente?'
+                    ]);
+                }
+
+                // === RESERVAR ===
+                if (text.match(/reserv|apartar|agendar|turno|cita|book|ir|visitar|quiero ir|vamos a ir|queremos ir/)) {
+                    return pick([
+                        '¡Genial que quieras venir! Para reservar, te paso con mi compañero por WhatsApp y te confirma disponibilidad al momento. ¿Te parece?',
+                        'Perfecto, me encanta. La forma más rápida es por WhatsApp, ahí te confirman el turno en segundos. ¿Quieres que te conecte?'
+                    ]);
+                }
+
+                // === JUEGOS ===
+                if (text.match(/juego|game|que hay|qué hay|que tienen|qué tienen|catalogo|catálogo|lista|jugar|puedo jugar|opciones|títulos/)) {
+                    return pick([
+                        'Tenemos +50 juegos para todos los gustos:\n\n• Beat Saber → música y ritmo\n• Arizona Sunshine 2 → zombies, intenso\n• Phasmophobia → terror con amigos\n• Gorilla Tag → viral, muy divertido\n• Batman VR → el más nuevo\n\n¿Qué tipo de experiencia te llama la atención?',
+                        'Nuestra biblioteca es enorme. Hay de acción, terror, música, deportes, aventura... ¿Vienes solo, con amigos o familia? Así te recomiendo mejor.'
+                    ]);
+                }
+
+                // === TERROR / MIEDO ===
+                if (text.match(/terror|miedo|susto|phasmophobia|horror|asustar|fantasma/)) {
+                    return 'Si buscas adrenalina, Phasmophobia es increíble. Investigas casas embrujadas con tus amigos y los fantasmas realmente te persiguen. Solo para mayores de 14 años y gente sin problemas del corazón. ¿Te animas?';
+                }
+
+                // === CUMPLEAÑOS / FIESTAS ===
+                if (text.match(/cumple|fiesta|party|celebr|niño|niña|hijo|hija|pequeño|chico|festej/)) {
+                    return pick([
+                        'Los cumpleaños aquí son memorables. Tenemos:\n\n• Pack Estándar: $18,000/niño (1hr + sala privada)\n• Pack VIP: $28,000/niño (1.5hrs + pizza + regalo)\n\n¿Para qué edad sería y cuántos invitados?',
+                        'Hacemos muchos cumples y todos salen felices. ¿Es para niño o niña? ¿Y más o menos cuántos invitados serían?'
+                    ]);
+                }
+
+                // === UBICACIÓN ===
+                if (text.match(/donde|dónde|ubicacion|ubicación|direccion|dirección|llegar|llego|queda|encuentran|mapa|localiz/)) {
+                    return 'Estamos en Av. Corrientes 1234, Buenos Aires. Muy fácil de llegar: cerca del subte Línea B y hay estacionamiento a media cuadra. ¿Quieres que te mande la ubicación exacta por WhatsApp?';
+                }
+
+                // === EDAD MÍNIMA ===
+                if (text.match(/edad|años|menor|pequeño|chiquito|niños pueden|desde que edad|limite de edad/)) {
+                    return 'Lo recomendamos desde los 8 años para que el casco ajuste bien. Para juegos de terror, mínimo 14 años. Los cascos se ajustan a diferentes tamaños de cabeza. ¿Para quién sería?';
+                }
+
+                // === MAREO ===
+                if (text.match(/mareo|mare[ao]|vomit|náusea|nausea|enferm|malestar/)) {
+                    return 'Tranquilo, en nuestra Arena Free Roam casi nadie se marea porque caminas físicamente, no solo con el control. Además empezamos con juegos suaves si es tu primera vez.';
+                }
+
+                // === ANTEOJOS ===
+                if (text.match(/anteojos|lentes|gafas|vista|miope|astigmat|óptic/)) {
+                    return 'Sí, puedes usar tus lentes normales sin problema. Los cascos Quest 3 tienen espaciadores especiales para eso. Muchos clientes los usan.';
+                }
+
+                // === PRIMERA VEZ ===
+                if (text.match(/primera vez|nunca|probado|nuevo|principiante|experiencia|no sé|no se|nervios/)) {
+                    return 'No te preocupes, el 80% de nuestros clientes nunca han jugado VR antes. Nuestros instructores te explican todo en 5 minutos. Es súper intuitivo, ya verás.';
+                }
+
+                // === TECNOLOGÍA ===
+                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless|calidad|resoluci|pantalla|gráfic/)) {
+                    return 'Usamos Meta Quest 3, lo más nuevo del mercado. Son totalmente inalámbricos, con resolución 4K+. La Arena tiene 200m² para moverte libremente. ¡Es otra cosa!';
+                }
+
+                // === GRUPOS ===
+                if (text.match(/grupo|amigos|varios|cuantos pueden|cuántos pueden|juntos|todos|equipo/)) {
+                    return 'En la Arena pueden jugar hasta 10 personas al mismo tiempo. Si son más, organizamos turnos. ¿Cuántos serían?';
+                }
+
+                // === CORPORATIVO ===
+                if (text.match(/empresa|corporativo|team building|trabajo|oficina|empleados|compañeros/)) {
+                    return 'Hacemos muchos eventos corporativos. Es genial para team building: torneos, competencias, y podemos incluir catering. ¿Te paso con nuestro coordinador de eventos?';
+                }
+
+                // === GRACIAS ===
+                if (text.match(/gracias|thank|te lo agradezco|muy amable|excelente|genial|perfecto|buenísimo|buenisimo|chevere|chévere|cool|increíble|increible/)) {
+                    return pick([
+                        '¡Con mucho gusto! ¿Hay algo más en lo que te pueda ayudar?',
+                        '¡A ti por escribirme! Si tienes más dudas, aquí estoy. ¡Espero verte pronto!',
+                        '¡De nada! Fue un placer ayudarte. ¡Que tengas excelente día!'
+                    ]);
+                }
+
+                // === DESPEDIDA ===
+                if (text.match(/chao|adiós|adios|bye|hasta luego|nos vemos|me voy|ya me voy|hasta pronto|cuídate|cuidate/)) {
+                    return pick([
+                        '¡Hasta luego! Fue un gusto atenderte. Cuando quieras, aquí estaré. ¡Cuídate!',
+                        '¡Nos vemos! Espero verte pronto por Virtual Life. ¡Que te vaya súper!',
+                        '¡Chao! Gracias por escribir. ¡Que tengas un excelente día!'
+                    ]);
+                }
+
+                // === QUEJAS / PROBLEMAS ===
+                if (text.match(/problema|queja|mal servicio|molest|enojado|no me gust|reclamo/)) {
+                    return 'Lamento mucho escuchar eso. Cuéntame qué pasó y veré cómo te puedo ayudar. Tu satisfacción es muy importante para nosotros.';
+                }
+
+                // === MENSAJES MUY CORTOS ===
+                if (words.length === 1) {
+                    const singleWord = words[0];
+                    if (singleWord.match(/^(vr|realidad|virtual)$/)) {
+                        return '¡Sí, somos un centro de realidad virtual! ¿Qué te gustaría saber? ¿Precios, juegos, o quieres reservar?';
+                    }
+                    if (singleWord.match(/^(info|información|informacion)$/)) {
+                        return 'Claro, ¿qué información necesitas? Puedo contarte sobre precios, horarios, juegos, cumpleaños, o cómo llegar.';
+                    }
+                    return pick([
+                        '¿Me puedes dar un poco más de detalle? Así te ayudo mejor.',
+                        '¿Qué te gustaría saber exactamente?',
+                        'Cuéntame más, ¿sobre qué necesitas información?'
+                    ]);
+                }
+
+                // === DEFAULT - Conversación natural ===
+                return pick([
+                    'Mmm, no estoy segura de entender bien. ¿Me lo explicas de otra forma? Puedo ayudarte con precios, horarios, juegos, cumpleaños o reservaciones.',
+                    'No capté del todo. Cuéntame más específicamente qué necesitas saber y con gusto te ayudo.',
+                    'Disculpa, no entendí bien. ¿Quieres saber sobre nuestros servicios, precios, o te ayudo a reservar?',
+                    'Perdón, no te entendí. ¿Me puedes explicar qué estás buscando? Estoy para ayudarte.'
+                ]);
+            };
+
+            const handleSend = async () => {
+                if (!inputValue.trim() || chatState !== 'connected') return;
+
+                const userMessage = { type: 'user', text: inputValue };
+                const updatedMessages = [...messages, userMessage];
+                setMessages(updatedMessages);
+                const currentInput = inputValue;
+                setInputValue('');
+                setIsTyping(true);
+
+                try {
+                    // Llamar a la API del chatbot con IA
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: currentInput,
+                            history: updatedMessages
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    // Detectar si la respuesta menciona WhatsApp para redirigir
+                    const botText = data.response;
+                    if (botText.toLowerCase().includes('whatsapp') && currentInput.toLowerCase().match(/^(si|sí|ok|dale|claro|va)$/)) {
+                        setTimeout(() => {
+                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                        }, 1500);
+                    }
+
+                    setMessages(prev => [...prev, { type: 'bot', text: botText }]);
+                } catch (error) {
+                    console.error('Error en chat:', error);
+                    // Fallback a respuesta local si falla la API
+                    const fallbackResponse = getResponse(currentInput, updatedMessages);
+                    setMessages(prev => [...prev, { type: 'bot', text: fallbackResponse }]);
+                }
+
+                setIsTyping(false);
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            };
+
+            // Opciones rápidas
+            const quickOptions = ['Precios', 'Horarios', 'Juegos', 'Reservar'];
+
+            return (
+                <>
+                    {/* Botón flotante del chat */}
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={`fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 ${isOpen ? 'bg-red-500 hover:bg-red-600' : 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500'}`}
+                        aria-label={isOpen ? 'Cerrar chat' : 'Abrir chat'}
+                    >
+                        {isOpen ? <X size={28} className="text-white" /> : <MessageCircle size={28} className="text-white" />}
+                        {!isOpen && (
+                            <>
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse border-2 border-white"></span>
+                                <span className="absolute -top-8 right-0 bg-black/80 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap animate-bounce">
+                                    ¿Necesitas ayuda?
+                                </span>
+                            </>
+                        )}
+                    </button>
+
+                    {/* Ventana del chat */}
+                    {isOpen && (
+                        <div className="fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
+                            {/* Header con foto del agente */}
+                            <div className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 flex items-center gap-3">
+                                <div className="relative">
+                                    <img
+                                        src={agent.image}
+                                        alt={agent.name}
+                                        className="w-12 h-12 rounded-full border-2 border-white object-cover"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-white font-bold">{agent.name}</h3>
+                                    <p className="text-white/70 text-xs">{agent.role} • Virtual Life</p>
+                                </div>
+                                <button onClick={handleClose} className="text-white/70 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Estado de conexión */}
+                            {chatState === 'connecting' && (
+                                <div className="h-80 flex flex-col items-center justify-center bg-[#0a0a0a] gap-4">
+                                    <img
+                                        src={agent.image}
+                                        alt={agent.name}
+                                        className="w-20 h-20 rounded-full border-4 border-cyan-500 object-cover animate-pulse"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                    <div className="text-center">
+                                        <p className="text-white font-semibold">Conectando con {agent.name}...</p>
+                                        <p className="text-gray-400 text-sm">Servicio al Cliente</p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Mensajes - solo cuando está conectado */}
+                            {chatState === 'connected' && (
+                                <>
+                                    <div className="h-80 overflow-y-auto p-4 space-y-4 scrollbar-hide bg-[#0a0a0a]">
+                                        {messages.map((msg, idx) => (
+                                            <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} gap-2`}>
+                                                {msg.type === 'bot' && (
+                                                    <img
+                                                        src={agent.image}
+                                                        alt={agent.name}
+                                                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                )}
+                                                <div className={`max-w-[75%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.type === 'user' ? 'bg-cyan-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
+                                                    {msg.text}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isTyping && (
+                                            <div className="flex justify-start gap-2">
+                                                <img
+                                                    src={agent.image}
+                                                    alt={agent.name}
+                                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                                <div className="bg-white/10 p-3 rounded-2xl rounded-bl-sm">
+                                                    <div className="flex gap-1 items-center">
+                                                        <span className="text-gray-400 text-xs mr-2">María está escribiendo</span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div ref={messagesEndRef} />
+                                    </div>
+
+                                    {/* Opciones rápidas */}
+                                    <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide border-t border-white/5">
+                                        {quickOptions.map((opt, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setInputValue(opt);
+                                                    setTimeout(() => {
+                                                        const btn = document.getElementById('chat-send-btn');
+                                                        if (btn) btn.click();
+                                                    }, 100);
+                                                }}
+                                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all whitespace-nowrap"
+                                            >
+                                                {opt}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Input */}
+                                    <div className="p-4 border-t border-white/10 bg-[#111]">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={inputValue}
+                                                onChange={(e) => setInputValue(e.target.value)}
+                                                onKeyPress={handleKeyPress}
+                                                placeholder="Escribe tu mensaje..."
+                                                className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-500 outline-none transition-colors"
+                                            />
+                                            <button
+                                                id="chat-send-btn"
+                                                onClick={handleSend}
+                                                disabled={!inputValue.trim()}
+                                                className="w-12 h-12 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
+                                            >
+                                                <Send size={20} className="text-black" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </>
+            );
+        };
+
+        // --- DATOS DEL SISTEMA ---
+        const GAMES_DB = [
+            {
+                id: 1,
+                title: "Batman: Arkham Shadow",
+                category: "Acción",
+                players: "1 Jugador",
+                intensity: "Alta",
+                image: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/21000/header.jpg?t=1700000000",
+                desc: "Conviértete en el Caballero Oscuro en esta nueva entrega exclusiva para VR. Combate brutal y detectivesco.",
+                badge: "NUEVO 2025"
+            },
+            {
+                id: 2,
+                title: "Arizona Sunshine 2",
+                category: "Shooter",
+                players: "1-4 Co-op",
+                intensity: "Alta",
+                image: "https://image.api.playstation.com/vulcan/ap/rnd/202309/2515/c67f5251a37c093a67749174092b77a086f67585a73229b3.png",
+                desc: "Sobrevive al apocalipsis zombie con amigos. Más sangre, más armas y un perro compañero.",
+                badge: "TOP VENTAS"
+            },
+            {
+                id: 3,
+                title: "Beat Saber",
+                category: "Música",
+                players: "1-2 Jugadores",
+                intensity: "Media",
+                image: "https://upload.wikimedia.org/wikipedia/en/thumb/c/c8/Beat_Saber_cover_art.jpg/220px-Beat_Saber_cover_art.jpg",
+                desc: "Corta cubos al ritmo de la música. El juego de VR más adictivo y popular del mundo.",
+                badge: "CLÁSICO"
+            },
+            {
+                id: 4,
+                title: "Phasmophobia",
+                category: "Terror",
+                players: "1-4 Co-op",
+                intensity: "Muy Alta",
+                image: "https://cdn.akamai.steamstatic.com/steam/apps/739630/header.jpg",
+                desc: "Terror psicológico cooperativo. Entra en casas embrujadas y busca evidencia paranormal... si te atreves.",
+                badge: "TERROR"
+            },
+            {
+                id: 5,
+                title: "Gorilla Tag",
+                category: "Niños/Social",
+                players: "Multijugador",
+                intensity: "Alta",
+                image: "https://cdn.akamai.steamstatic.com/steam/apps/1533390/header.jpg",
+                desc: "Corre, salta y trepa usando solo tus manos. El juego viral que aman los más jóvenes.",
+                badge: "VIRAL"
+            },
+            {
+                id: 6,
+                title: "Among Us VR",
+                category: "Social",
+                players: "4-10 Jugadores",
+                intensity: "Baja",
+                image: "https://cdn.akamai.steamstatic.com/steam/apps/1849900/header.jpg",
+                desc: "Trabajo en equipo y traición en el espacio. Encuentra al impostor antes de que sea tarde.",
+                badge: "DIVERTIDO"
+            },
+            {
+                id: 7,
+                title: "Superhot VR",
+                category: "Acción",
+                players: "1 Jugador",
+                intensity: "Media",
+                image: "https://cdn.akamai.steamstatic.com/steam/apps/617830/header.jpg",
+                desc: "El tiempo solo se mueve cuando tú te mueves. Un shooter estratégico y elegante.",
+                badge: null
+            },
+            {
+                id: 8,
+                title: "Job Simulator",
+                category: "Niños",
+                players: "1 Jugador",
+                intensity: "Baja",
+                image: "https://cdn.akamai.steamstatic.com/steam/apps/448280/header.jpg",
+                desc: "Un mundo donde los robots han reemplazado todos los trabajos humanos. Humor y diversión casual.",
+                badge: "FAMILIAR"
+            }
+        ];
+
+        const CATEGORIES = [
+            { id: 'all', label: 'Todos', icon: Gamepad2 },
+            { id: 'Acción', label: 'Acción', icon: Crosshair },
+            { id: 'Terror', label: 'Terror', icon: Ghost },
+            { id: 'Música', label: 'Ritmo', icon: Music },
+            { id: 'Niños', label: 'Kids', icon: Smile },
+        ];
+
+        const FAQS = [
+            {
+                q: "¿Necesito experiencia previa?",
+                a: "¡Para nada! El 80% de nuestros visitantes juega por primera vez. Nuestro equipo te enseña todo en 5 minutos antes de empezar."
+            },
+            {
+                q: "¿Puedo usar mis anteojos recetados?",
+                a: "Sí. Nuestros cascos Meta Quest 3 tienen un espaciador especial diseñado para acomodar la mayoría de los anteojos sin incomodidad."
+            },
+            {
+                q: "¿Cuál es la edad mínima?",
+                a: "Recomendamos a partir de los 8 años por el tamaño del casco. Para juegos de terror, sugerimos mayores de 14 años."
+            },
+            {
+                q: "¿Me voy a marear?",
+                a: "Es muy poco probable en nuestra Free Roam Arena ya que tu cuerpo se mueve igual que en el juego (1:1). En las estaciones, tenemos juegos de baja intensidad para principiantes."
+            }
+        ];
+
+        const REVIEWS = [
+            {
+                name: "Martín G.",
+                role: "Gamer Casual",
+                text: "Fui con mi novia y nos voló la cabeza. El de zombies (Arizona) es una locura, sentís que están ahí de verdad.",
+                stars: 5
+            },
+            {
+                name: "Sofía L.",
+                role: "Madre de Cumpleañero",
+                text: "Celebré los 10 años de mi hijo. La organización impecable, los chicos salieron fascinados y la sala privada muy cómoda.",
+                stars: 5
+            },
+            {
+                name: "Equipo Devs",
+                role: "Evento Corporativo",
+                text: "Excelente para team building. Mucho mejor que un after office tradicional. Volveremos por la revancha.",
+                stars: 5
+            }
+        ];
+
+        // --- COMPONENTE PRINCIPAL ---
+        function VirtualLifeApp() {
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [scrolled, setScrolled] = useState(false);
+            const [activeCategory, setActiveCategory] = useState('all');
+            const [activeTab, setActiveTab] = useState('arena');
+            const [openFaq, setOpenFaq] = useState(null);
+
+            useEffect(() => {
+                const handleScroll = () => setScrolled(window.scrollY > 50);
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            const filteredGames = activeCategory === 'all'
+                ? GAMES_DB
+                : GAMES_DB.filter(game => game.category.includes(activeCategory));
+
+            const navLinks = [
+                { name: 'Experiencias', href: '#experiencias' },
+                { name: 'Tecnología', href: '#tech' },
+                { name: 'Juegos', href: '#juegos' },
+                { name: 'Precios', href: '#precios' },
+                { name: 'Cumples', href: '#cumpleanos' },
+                { name: 'Ubicación', href: '#contacto' },
+            ];
+
+            const toggleFaq = (index) => {
+                setOpenFaq(openFaq === index ? null : index);
+            };
+
+            // Función para abrir WhatsApp con mensaje predefinido
+            const openWhatsApp = (message = "Hola! Quiero reservar una sesión de VR") => {
+                const phone = "5057779143"; // Número de WhatsApp
+                const encodedMessage = encodeURIComponent(message);
+                window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+            };
+
+            // Función para scroll suave a una sección
+            const scrollToSection = (sectionId) => {
+                const element = document.getElementById(sectionId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    setIsMenuOpen(false); // Cerrar menú móvil si está abierto
+                }
+            };
+
+            // Mensaje específico para cumpleaños
+            const openWhatsAppCumple = () => {
+                openWhatsApp("Hola! Me interesa información sobre paquetes de cumpleaños VR");
+            };
+
+            // Mensaje específico para eventos corporativos
+            const openWhatsAppEventos = () => {
+                openWhatsApp("Hola! Quisiera solicitar un presupuesto para evento corporativo");
+            };
+
+            return (
+                <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-cyan-500 selection:text-black">
+
+                    {/* --- NAVBAR --- */}
+                    <nav className={`fixed w-full z-50 transition-all duration-300 border-b ${scrolled ? 'py-3 bg-black/90 backdrop-blur-xl border-cyan-500/30' : 'py-6 bg-transparent border-transparent'}`} role="navigation" aria-label="Navegación principal">
+                        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+
+                            {/* Logo Section con SmartLogo */}
+                            <div className="flex items-center gap-3">
+                                <SmartLogo />
+
+                                <div className="flex flex-col hidden sm:flex">
+                                    <span className="text-xl md:text-2xl font-black tracking-tighter leading-none italic">
+                                        VIRTUAL<span className="text-cyan-400">LIFE</span>
+                                    </span>
+                                    <span className="text-[9px] md:text-[10px] tracking-[0.2em] text-gray-400 font-bold uppercase">
+                                        El Futuro es Hoy
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-6">
+                                {navLinks.map((link) => (
+                                    <a
+                                        key={link.name}
+                                        href={link.href}
+                                        className="text-xs font-bold text-gray-300 hover:text-cyan-400 transition-colors uppercase tracking-wide"
+                                    >
+                                        {link.name}
+                                    </a>
+                                ))}
+                                <button type="button" onClick={() => openWhatsApp()} className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-wider text-xs rounded-sm transition-all hover:scale-105 shadow-[0_0_20px_rgba(6,182,212,0.5)]" aria-label="Reservar turno por WhatsApp">
+                                    Reservar
+                                </button>
+                            </div>
+
+                            <button type="button" className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={isMenuOpen}>
+                                {isMenuOpen ? <X size={30} /> : <Menu size={30} />}
+                            </button>
+                        </div>
+
+                        {isMenuOpen && (
+                            <div className="absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-b border-cyan-500/30 p-8 flex flex-col gap-6 md:hidden h-screen z-50">
+                                {navLinks.map((link) => (
+                                    <a key={link.name} href={link.href} className="text-2xl font-bold text-white" onClick={() => setIsMenuOpen(false)}>
+                                        {link.name}
+                                    </a>
+                                ))}
+                                <button type="button" onClick={() => { openWhatsApp(); setIsMenuOpen(false); }} className="w-full py-4 bg-cyan-600 text-white font-bold text-xl mt-4 rounded-lg">
+                                    RESERVAR TURNO
+                                </button>
+                            </div>
+                        )}
+                    </nav>
+
+                    {/* --- HERO SECTION --- */}
+                    <section id="main-content" className="relative h-screen flex items-center justify-center overflow-hidden" role="main">
+                        <div className="absolute inset-0 z-0">
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent z-10"></div>
+                            <img
+                                src="https://images.unsplash.com/photo-1622979135225-d2ba269fb1bd?q=80&w=2070&auto=format&fit=crop"
+                                alt="Persona usando casco de realidad virtual en ambiente futurista"
+                                className="w-full h-full object-cover opacity-60"
+                                loading="eager"
+                            />
+                        </div>
+
+                        <div className="relative z-20 container mx-auto px-6 text-center">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-900/30 border border-cyan-500/50 rounded-full mb-8 backdrop-blur-sm animate-fade-in-up">
+                                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></span>
+                                <span className="text-cyan-300 font-mono text-xs font-bold tracking-wider">NUEVA TECNOLOGÍA WIRELESS</span>
+                            </div>
+
+                            <h1 className="text-5xl md:text-8xl font-black tracking-tighter text-white mb-6 leading-tight">
+                                NO JUEGUES EL JUEGO.<br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_35px_rgba(6,182,212,0.5)]">
+                                    VIVE LA REALIDAD.
+                                </span>
+                            </h1>
+
+                            <p className="text-gray-300 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed font-light">
+                                El centro de Realidad Virtual más avanzado de la ciudad.
+                                Experimenta el <span className="text-white font-bold">Free Roam</span> sin cables o sumérgete en nuestras <span className="text-white font-bold">Estaciones Pro</span>.
+                            </p>
+
+                            <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
+                                <button type="button" onClick={() => openWhatsApp()} className="group relative px-8 py-4 bg-cyan-500 text-black font-black text-lg skew-x-[-10deg] hover:bg-cyan-400 transition-all hover:scale-105 shadow-[0_0_30px_rgba(6,182,212,0.4)]" aria-label="Reservar sesión de realidad virtual por WhatsApp">
+                                    <span className="block skew-x-[10deg] flex items-center gap-2">
+                                        RESERVAR SESIÓN <ChevronRight strokeWidth={3} />
+                                    </span>
+                                </button>
+                                <button type="button" onClick={() => scrollToSection('juegos')} className="group px-8 py-4 border border-white/30 bg-white/5 backdrop-blur-sm text-white font-bold text-lg skew-x-[-10deg] hover:bg-white/10 transition-all" aria-label="Ver catálogo de juegos">
+                                    <span className="block skew-x-[10deg]">VER JUEGOS</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- TECH SPECS --- */}
+                    <section id="tech" className="py-20 px-6 border-b border-white/5 bg-[#0e0e0e]">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="flex flex-col md:flex-row items-center gap-12">
+                                <div className="w-full md:w-1/3">
+                                    <h2 className="text-4xl font-black italic mb-6">NUESTRO <span className="text-cyan-500">ARSENAL</span></h2>
+                                    <p className="text-gray-400 mb-6">No usamos celulares en cajas de cartón. Usamos la tecnología punta de lanza de la industria para garantizar inmersión total.</p>
+
+                                    <div className="space-y-6">
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-3 bg-cyan-500/10 rounded-lg text-cyan-400"><Cpu size={24} /></div>
+                                            <div>
+                                                <h4 className="font-bold text-white">Procesadores Snapdragon XR2</h4>
+                                                <p className="text-sm text-gray-500">Gráficos de próxima generación sin latencia.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-3 bg-cyan-500/10 rounded-lg text-cyan-400"><Wifi size={24} /></div>
+                                            <div>
+                                                <h4 className="font-bold text-white">Libertad Wireless</h4>
+                                                <p className="text-sm text-gray-500">Streaming WiFi 6E. Sin cables que te aten al mundo real.</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-3 bg-cyan-500/10 rounded-lg text-cyan-400"><Monitor size={24} /></div>
+                                            <div>
+                                                <h4 className="font-bold text-white">Resolución 4K+</h4>
+                                                <p className="text-sm text-gray-500">Pantallas Infinite Display para una claridad cristalina.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="w-full md:w-2/3 grid grid-cols-2 gap-4">
+                                    <div className="bg-[#111] p-6 rounded-2xl border border-white/10 flex flex-col items-center text-center hover:border-cyan-500 transition-colors">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Oculus_Quest_2_Headset_Front.jpg/800px-Oculus_Quest_2_Headset_Front.jpg" alt="Casco Meta Quest 3 para realidad virtual" className="h-32 object-contain mb-4 mix-blend-screen opacity-80" loading="lazy" />
+                                        <span className="font-bold text-lg">Meta Quest 3</span>
+                                        <span className="text-xs text-gray-500 uppercase tracking-widest mt-1">Free Roam</span>
+                                    </div>
+                                    <div className="bg-[#111] p-6 rounded-2xl border border-white/10 flex flex-col items-center text-center hover:border-purple-500 transition-colors translate-y-8">
+                                        <Gamepad2 size={64} className="text-purple-500 mb-4" />
+                                        <span className="font-bold text-lg">Haptic Controllers</span>
+                                        <span className="text-xs text-gray-500 uppercase tracking-widest mt-1">Feedback Real</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- EXPERIENCIAS --- */}
+                    <section id="experiencias" className="py-24 px-6 bg-[#0a0a0a] relative overflow-hidden">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="text-center mb-16">
+                                <h2 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter mb-4">
+                                    Dos Formas de <span className="text-cyan-400">Jugar</span>
+                                </h2>
+                                <p className="text-gray-400 max-w-xl mx-auto">Elige tu estilo. Desde libertad total de movimiento hasta inmersión solitaria de alta fidelidad.</p>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-8">
+                                <div className="group relative h-[500px] rounded-3xl overflow-hidden border border-white/10 cursor-pointer">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
+                                    <img
+                                        src="https://images.unsplash.com/photo-1592478411213-61535fdd861d?q=80&w=2070&auto=format&fit=crop"
+                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                                        alt="Jugadores en arena Free Roam de realidad virtual"
+                                        loading="lazy"
+                                    />
+                                    <div className="absolute bottom-0 left-0 p-10 z-20 w-full">
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 inline-block rounded-full mb-3 uppercase tracking-wider">Más Popular</div>
+                                                <h3 className="text-4xl font-black italic mb-2">FREE ROAM ARENA</h3>
+                                                <p className="text-gray-300 mb-6 text-sm md:text-base max-w-sm">
+                                                    Muévete libremente en un espacio de 200m². Sin cables, sin límites. Tú y tu equipo contra zombies o robots.
+                                                </p>
+                                                <ul className="text-sm text-gray-400 space-y-2 mb-6">
+                                                    <li className="flex items-center gap-2"><Users size={16} className="text-purple-500" /> Hasta 10 Jugadores</li>
+                                                    <li className="flex items-center gap-2"><Zap size={16} className="text-purple-500" /> Tecnología Wireless Quest 3</li>
+                                                </ul>
+                                            </div>
+                                            <div className="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center transition-transform group-hover:rotate-45">
+                                                <ChevronRight />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="group relative h-[500px] rounded-3xl overflow-hidden border border-white/10 cursor-pointer">
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
+                                    <img
+                                        src="https://images.unsplash.com/photo-1626379953822-baec19c3accd?q=80&w=2070&auto=format&fit=crop"
+                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0"
+                                        alt="Estación individual de realidad virtual VR Station"
+                                        loading="lazy"
+                                    />
+                                    <div className="absolute bottom-0 left-0 p-10 z-20 w-full">
+                                        <div className="flex justify-between items-end">
+                                            <div>
+                                                <div className="bg-cyan-600 text-white text-xs font-bold px-3 py-1 inline-block rounded-full mb-3 uppercase tracking-wider">Variedad Total</div>
+                                                <h3 className="text-4xl font-black italic mb-2">VR STATIONS</h3>
+                                                <p className="text-gray-300 mb-6 text-sm md:text-base max-w-sm">
+                                                    Tu espacio personal de 3x3m. Acceso a biblioteca de +50 juegos top. Ideal para probarlo todo.
+                                                </p>
+                                                <ul className="text-sm text-gray-400 space-y-2 mb-6">
+                                                    <li className="flex items-center gap-2"><Users size={16} className="text-cyan-500" /> Individual o Multiplayer Online</li>
+                                                    <li className="flex items-center gap-2"><Monitor size={16} className="text-cyan-500" /> Gráficos Ultra PC-VR</li>
+                                                </ul>
+                                            </div>
+                                            <div className="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center transition-transform group-hover:rotate-45">
+                                                <ChevronRight />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- MENU DE JUEGOS --- */}
+                    <section id="juegos" className="py-24 px-6 bg-[#080808]">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+                                <div>
+                                    <h2 className="text-4xl md:text-5xl font-black italic mb-2">TOP GAMES <span className="text-cyan-500">2026</span></h2>
+                                    <p className="text-gray-400">Explora nuestra colección curada de éxitos mundiales.</p>
+                                </div>
+
+                                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto scrollbar-hide">
+                                    {CATEGORIES.map((cat) => (
+                                        <button
+                                            type="button"
+                                            key={cat.id}
+                                            onClick={() => setActiveCategory(cat.id)}
+                                            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap border ${activeCategory === cat.id
+                                                ? 'bg-cyan-500 border-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                }`}
+                                            aria-pressed={activeCategory === cat.id}
+                                        >
+                                            {/* Icono renderizado */}
+                                            <cat.icon size={16} />
+                                            {cat.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {filteredGames.map((game) => (
+                                    <div key={game.id} className="group bg-[#111] rounded-2xl overflow-hidden border border-white/5 hover:border-cyan-500/50 transition-all hover:-translate-y-2">
+                                        <div className="relative h-48 overflow-hidden">
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent z-10 opacity-60"></div>
+                                            <img src={game.image} alt={`Imagen del juego ${game.title}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                                            {game.badge && (
+                                                <div className="absolute top-3 left-3 z-20 bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider shadow-lg">
+                                                    {game.badge}
+                                                </div>
+                                            )}
+                                            <div className="absolute bottom-3 left-3 z-20 flex gap-2">
+                                                <span className="text-[10px] font-bold bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-white border border-white/10">{game.category}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-5">
+                                            <h3 className="text-lg font-bold text-white mb-2 leading-tight group-hover:text-cyan-400 transition-colors">{game.title}</h3>
+                                            <p className="text-gray-500 text-xs mb-4 line-clamp-2 h-8">{game.desc}</p>
+
+                                            <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-2">
+                                                <div className="flex items-center gap-1.5 text-gray-400 text-xs font-semibold">
+                                                    <Users size={14} /> {game.players}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-gray-400 text-xs font-semibold">
+                                                    <Zap size={14} className={game.intensity === 'Alta' || game.intensity === 'Muy Alta' ? 'text-yellow-500' : 'text-gray-600'} />
+                                                    {game.intensity}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-12 text-center">
+                                <button type="button" onClick={() => openWhatsApp('Hola! Quiero conocer el catálogo completo de juegos VR')} className="text-gray-500 font-mono text-sm hover:text-white transition-colors border-b border-gray-700 hover:border-white pb-1">
+                                    VER LISTA COMPLETA DE 50+ JUEGOS
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- PRECIOS --- */}
+                    <section id="precios" className="py-24 px-6 bg-[#0a0a0a] relative">
+                        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-cyan-900/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+                        <div className="max-w-4xl mx-auto">
+                            <div className="text-center mb-12">
+                                <h2 className="text-4xl font-black italic text-white mb-6">TARIFAS</h2>
+
+                                <div className="inline-flex bg-white/5 p-1 rounded-full border border-white/10" role="tablist">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('arena')}
+                                        className={`px-8 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'arena' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        role="tab"
+                                        aria-selected={activeTab === 'arena'}
+                                    >
+                                        VR ARENA
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('station')}
+                                        className={`px-8 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'station' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        role="tab"
+                                        aria-selected={activeTab === 'station'}
+                                    >
+                                        VR STATION
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <div className="bg-[#111] border border-white/10 rounded-2xl p-8 hover:border-cyan-500/50 transition-all flex flex-col">
+                                    <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">RÁPIDO</h3>
+                                    <div className="text-3xl font-black text-white mb-4">30 MIN</div>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Ideal para probar</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Acceso a todos los juegos</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Instructor incluido</li>
+                                    </ul>
+                                    <div className="text-2xl font-bold text-white mb-4">$15.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete RÁPIDO de 30 minutos')} className="w-full py-3 border border-white/20 rounded-lg text-sm font-bold hover:bg-white hover:text-black transition-all">RESERVAR</button>
+                                </div>
+
+                                <div className="bg-[#1a1a1a] border border-cyan-500 rounded-2xl p-8 relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-500 text-black text-xs font-black px-4 py-1 rounded-full uppercase">Más Vendido</div>
+                                    <h3 className="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-2">ESTÁNDAR</h3>
+                                    <div className="text-4xl font-black text-white mb-4">60 MIN</div>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Tiempo perfecto de inmersión</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Cambia de juego ilimitadamente</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Multijugador habilitado</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-4">$25.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete ESTÁNDAR de 60 minutos')} className="w-full py-3 bg-cyan-500 rounded-lg text-black text-sm font-black hover:bg-cyan-400 transition-all shadow-lg hover:shadow-cyan-500/25">RESERVAR AHORA</button>
+                                </div>
+
+                                <div className="bg-[#111] border border-white/10 rounded-2xl p-8 hover:border-cyan-500/50 transition-all flex flex-col">
+                                    <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">EXTENDIDO</h3>
+                                    <div className="text-3xl font-black text-white mb-4">90 MIN</div>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Para gamers serios</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Bebida de cortesía</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Acceso zona VIP lounge</li>
+                                    </ul>
+                                    <div className="text-2xl font-bold text-white mb-4">$35.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete EXTENDIDO de 90 minutos')} className="w-full py-3 border border-white/20 rounded-lg text-sm font-bold hover:bg-white hover:text-black transition-all">RESERVAR</button>
+                                </div>
+                            </div>
+
+                            <div className="mt-12 bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-purple-900/30 rounded-xl text-purple-400">
+                                        <Calendar size={32} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-lg text-white">Eventos & Cumpleaños</h4>
+                                        <p className="text-sm text-gray-400">¿Tienes un grupo de +10 personas? Tenemos precios especiales.</p>
+                                    </div>
+                                </div>
+                                <button type="button" onClick={() => scrollToSection('cumpleanos')} className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors whitespace-nowrap">
+                                    Ver Paquetes Grupales
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- CUMPLEAÑOS --- */}
+                    <section id="cumpleanos" className="py-24 px-6 bg-[#0a0a0a] relative overflow-hidden border-t border-white/5">
+                        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                            <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px]"></div>
+                            <div className="absolute bottom-[10%] left-[-10%] w-[400px] h-[400px] bg-cyan-600/10 rounded-full blur-[100px]"></div>
+                        </div>
+
+                        <div className="max-w-7xl mx-auto relative z-10">
+                            <div className="text-center mb-16">
+                                <h2 className="text-4xl md:text-6xl font-black italic mb-4">
+                                    CUMPLEAÑOS <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">LEVEL UP</span>
+                                </h2>
+                                <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+                                    La fiesta que todos recordarán. Olvídate de los peloteros. Trae a la squad a combatir zombies o bailar en VR.
+                                </p>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-12 items-start">
+                                {/* Left: Info & Packages */}
+                                <div className="space-y-8">
+                                    <div className="bg-[#111] border border-white/10 p-8 rounded-3xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
+                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                            <Gift size={100} />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                                            <Star className="text-yellow-400 fill-yellow-400" /> PACK STANDARD
+                                        </h3>
+                                        <ul className="space-y-3 text-gray-300 mb-6">
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>1 Hora de Juego VR (Arena o Estación)</li>
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>Sala Privada para Merienda (30 min)</li>
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>Invitaciones Digitales Personalizadas</li>
+                                        </ul>
+                                        <div className="text-xl font-bold text-purple-400">Desde $18.000 <span className="text-sm text-gray-500">/niño</span></div>
+                                    </div>
+
+                                    <div className="bg-[#111] border border-purple-500/30 p-8 rounded-3xl relative overflow-hidden shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+                                        <div className="absolute top-4 right-4 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Más Elegido</div>
+                                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                                            <Star className="text-yellow-400 fill-yellow-400" />
+                                            <Star className="text-yellow-400 fill-yellow-400" />
+                                            PACK EPIC VIP
+                                        </h3>
+                                        <ul className="space-y-3 text-gray-300 mb-6">
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>1.5 Horas de Juego Total</li>
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Torneo Privado con Premios</li>
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Pizza Party + Bebidas Incluidas</li>
+                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Regalo VR para el Cumpleañero</li>
+                                        </ul>
+                                        <div className="text-xl font-bold text-cyan-400">Desde $28.000 <span className="text-sm text-gray-500">/niño</span></div>
+                                    </div>
+                                </div>
+
+                                {/* Right: Detailed Form */}
+                                <div className="bg-[#161616] border border-white/10 rounded-[2rem] p-8 md:p-10">
+                                    <h3 className="text-2xl font-bold text-white mb-6">Arma tu Fiesta</h3>
+                                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()} noValidate>
+                                        <div className="grid grid-cols-2 gap-5">
+                                            <div className="space-y-2">
+                                                <label htmlFor="parent-name" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tu Nombre</label>
+                                                <input type="text" id="parent-name" name="parentName" autoComplete="name" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Padre/Madre/Tutor" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label htmlFor="birthday-child" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cumpleañero/a</label>
+                                                <input type="text" id="birthday-child" name="childName" autoComplete="off" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Nombre del agasajado" />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-5">
+                                            <div className="space-y-2">
+                                                <label htmlFor="phone-number" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Teléfono / WhatsApp</label>
+                                                <input type="tel" id="phone-number" name="phone" autoComplete="tel" required pattern="[0-9+\-\s]+" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="+505 7779-1433..." />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label htmlFor="event-date" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Tentativa</label>
+                                                <input type="date" id="event-date" name="eventDate" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-gray-400 focus:text-white focus:border-purple-500 outline-none transition-colors" />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider" id="guests-label">Cantidad Aprox. de Invitados</label>
+                                            <div className="grid grid-cols-3 gap-3" role="group" aria-labelledby="guests-label">
+                                                {['10-15', '16-25', '+25'].map(opt => (
+                                                    <button type="button" key={opt} className="bg-[#0a0a0a] border border-white/10 hover:border-purple-500 text-gray-300 py-3 rounded-lg text-sm font-bold transition-all focus:bg-purple-500/20 focus:border-purple-500 focus:text-white">
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label htmlFor="interest-type" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Interés Principal</label>
+                                            <select id="interest-type" name="interestType" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors appearance-none cursor-pointer">
+                                                <option value="standard">Pack Standard (Solo Juego + Sala)</option>
+                                                <option value="vip">Pack Epic VIP (Comida + Torneo)</option>
+                                                <option value="info">Solo averiguar precios</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label htmlFor="extra-message" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mensaje Extra</label>
+                                            <textarea id="extra-message" name="message" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors h-24 resize-none" placeholder="¿Alguna duda específica?" maxLength={500}></textarea>
+                                        </div>
+
+                                        <button type="submit" className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-white text-lg hover:shadow-[0_0_30px_rgba(219,39,119,0.4)] transition-all transform hover:scale-[1.02]">
+                                            ENVIAR CONSULTA
+                                        </button>
+                                        <p className="text-center text-xs text-gray-600 mt-2">Te contactaremos en menos de 24hs para confirmar disponibilidad.</p>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- EVENTOS CORPORATIVOS --- */}
+                    <section id="eventos" className="py-24 px-6 bg-[#000] border-t border-white/10">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+                            <div className="w-full md:w-1/2">
+                                <h2 className="text-4xl md:text-5xl font-black italic mb-6">EVENTOS <br /><span className="text-purple-500">FUERA DE ESTE MUNDO</span></h2>
+                                <p className="text-gray-400 text-lg mb-8 leading-relaxed">
+                                    Olvídate del bowling o las cenas aburridas. Lleva a tu equipo o amigos a otra dimensión. Organizamos torneos, catering y experiencias personalizadas para empresas y fiestas privadas.
+                                </p>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
+                                        <span className="font-bold text-gray-200">Capacidad hasta 40 personas</span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Star size={20} /></div>
+                                        <span className="font-bold text-gray-200">Torneos Privados con Trofeos</span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><CreditCard size={20} /></div>
+                                        <span className="font-bold text-gray-200">Factura A para Empresas</span>
+                                    </div>
+                                </div>
+                                <button type="button" onClick={() => openWhatsAppEventos()} className="mt-10 px-8 py-3 bg-white text-black font-bold uppercase hover:bg-gray-200 transition-colors">
+                                    Solicitar Presupuesto
+                                </button>
+                            </div>
+                            <div className="w-full md:w-1/2 relative">
+                                <div className="absolute -inset-4 bg-purple-500/20 rounded-[3rem] blur-xl"></div>
+                                <img
+                                    src="https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=2070&auto=format&fit=crop"
+                                    alt="Grupo de personas disfrutando evento corporativo de realidad virtual"
+                                    className="relative rounded-[3rem] border-2 border-white/10 w-full shadow-2xl rotate-3 hover:rotate-0 transition-all duration-500"
+                                    loading="lazy"
+                                />
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- REVIEWS --- */}
+                    <section className="py-20 px-6 bg-[#0a0a0a]">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="text-center mb-16">
+                                <h2 className="text-3xl md:text-5xl font-black italic mb-4">VOCES DEL <span className="text-cyan-500">METAVERSO</span></h2>
+                            </div>
+
+                            <div className="grid md:grid-cols-3 gap-8">
+                                {REVIEWS.map((review, idx) => (
+                                    <div key={idx} className="bg-[#111] p-8 rounded-2xl border border-white/5 relative group hover:-translate-y-2 transition-transform duration-300">
+                                        <div className="absolute -top-4 -right-4 text-6xl text-white/5 font-serif">"</div>
+                                        <div className="flex gap-1 mb-4">
+                                            {[...Array(review.stars)].map((_, i) => (
+                                                <Star key={i} size={16} className="text-yellow-500 fill-yellow-500" />
+                                            ))}
+                                        </div>
+                                        <p className="text-gray-300 mb-6 italic leading-relaxed">"{review.text}"</p>
+                                        <div>
+                                            <div className="font-bold text-white">{review.name}</div>
+                                            <div className="text-xs text-cyan-500 font-bold uppercase tracking-wider">{review.role}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- FAQ --- */}
+                    <section className="py-20 px-6 border-t border-white/5 bg-[#0e0e0e]">
+                        <div className="max-w-3xl mx-auto">
+                            <div className="text-center mb-12">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                    <HelpCircle className="text-purple-500" />
+                                    <span className="text-purple-500 font-bold uppercase tracking-widest text-xs">Dudas Frecuentes</span>
+                                </div>
+                                <h2 className="text-3xl md:text-4xl font-black text-white">ANTES DE ENTRAR</h2>
+                            </div>
+
+                            <div className="space-y-4">
+                                {FAQS.map((faq, idx) => (
+                                    <div key={idx} className="bg-[#161616] rounded-xl overflow-hidden border border-white/5">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleFaq(idx)}
+                                            className="w-full flex justify-between items-center p-6 text-left hover:bg-white/5 transition-colors"
+                                            aria-expanded={openFaq === idx}
+                                        >
+                                            <span className="font-bold text-lg text-white">{faq.q}</span>
+                                            <ChevronDown className={`text-gray-400 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        <div className={`px-6 text-gray-400 leading-relaxed overflow-hidden transition-all duration-300 ${openFaq === idx ? 'max-h-40 pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            {faq.a}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* --- FOOTER --- */}
+                    <footer id="contacto" className="bg-[#050505] pt-24 pb-12 px-6 border-t border-white/10">
+                        <div className="max-w-7xl mx-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+                                <div className="col-span-1 md:col-span-2">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        {/* SmartLogo en Footer */}
+                                        <SmartLogo size="w-16 h-16" />
+
+                                        <div className="flex flex-col justify-center">
+                                            <span className="text-2xl font-black italic text-white">VIRTUAL<span className="text-cyan-500">LIFE</span></span>
+                                            <span className="text-xs text-gray-500 uppercase tracking-widest">El Futuro es Hoy</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-500 max-w-sm mb-6">
+                                        El futuro del entretenimiento está aquí. Ven y experimenta la tecnología de realidad virtual más inmersiva de Argentina.
+                                    </p>
+                                    <div className="flex gap-4">
+                                        <a href="https://instagram.com/virtuallife" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Síguenos en Instagram"><Instagram size={18} /></a>
+                                        <a href="https://www.facebook.com/realidadvirtualnicaragua" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Síguenos en Facebook"><Facebook size={18} /></a>
+                                        <a href="mailto:reservas@virtuallife.com" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Envíanos un correo"><Mail size={18} /></a>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="text-white font-bold uppercase tracking-wider mb-6">Contacto</h4>
+                                    <ul className="space-y-4 text-gray-400 text-sm">
+                                        <li className="flex items-start gap-3">
+                                            <MapPin size={18} className="text-cyan-500 shrink-0" />
+                                            Av. Corrientes 1234, Buenos Aires,<br />CABA, Argentina
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <Phone size={18} className="text-cyan-500 shrink-0" />
+                                            +505 7779-1433
+                                        </li>
+                                        <li className="flex items-center gap-3">
+                                            <Mail size={18} className="text-cyan-500 shrink-0" />
+                                            reservas@virtuallife.com
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="text-white font-bold uppercase tracking-wider mb-6">Horarios</h4>
+                                    <ul className="space-y-2 text-gray-400 text-sm">
+                                        <li className="flex justify-between"><span>Lun - Jue:</span> <span className="text-white">12:00 - 22:00</span></li>
+                                        <li className="flex justify-between"><span>Vie:</span> <span className="text-white">12:00 - 00:00</span></li>
+                                        <li className="flex justify-between"><span>Sáb:</span> <span className="text-white">10:00 - 01:00</span></li>
+                                        <li className="flex justify-between"><span>Dom:</span> <span className="text-white">10:00 - 23:00</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/5 pt-8 text-center md:text-left flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 font-mono">
+                                <p>© 2026 VIRTUAL LIFE. Todos los derechos reservados.</p>
+                                <nav className="flex gap-6 mt-4 md:mt-0" aria-label="Enlaces legales">
+                                    <a href="/terminos" className="hover:text-cyan-500 transition-colors">Términos</a>
+                                    <a href="/privacidad" className="hover:text-cyan-500 transition-colors">Privacidad</a>
+                                    <a href="/franquicias" className="hover:text-cyan-500 transition-colors">Franquicias</a>
+                                </nav>
+                            </div>
+                        </div>
+                    </footer>
+
+                    {/* --- CHATBOT INTELIGENTE --- */}
+                    <ChatBot openWhatsApp={openWhatsApp} />
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<VirtualLifeApp />);
+    </script>
+</body>
+
+</html>
