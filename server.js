@@ -3,11 +3,14 @@
  * Servidor Express con configuraciones de seguridad y optimización
  */
 
+require('dotenv').config();
+
 const express = require('express');
 const compression = require('compression');
 const helmet = require('helmet');
 const cors = require('cors');
 const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -114,8 +117,8 @@ app.post('/api/reservacion', (req, res) => {
 // CHATBOT CON INTELIGENCIA ARTIFICIAL (GEMINI)
 // ============================================
 
-// Contexto del negocio para el chatbot
-const BUSINESS_CONTEXT = `
+// Instrucciones del sistema para el chatbot María
+const SYSTEM_INSTRUCTION = `
 Eres María, una agente de servicio al cliente de VIRTUAL LIFE, un centro de realidad virtual ubicado en Buenos Aires, Argentina.
 
 INFORMACIÓN DEL NEGOCIO:
@@ -145,7 +148,7 @@ JUEGOS POPULARES:
 - Phasmophobia (terror, solo mayores de 14 años)
 - Gorilla Tag (viral, divertido para grupos)
 - Batman VR (nuevo exclusivo 2025)
-- +50 títulos más
+- Superhot VR, Among Us VR, Job Simulator y +50 títulos más
 
 TECNOLOGÍA:
 - Cascos Meta Quest 3 (última generación)
@@ -169,22 +172,23 @@ TU PERSONALIDAD (María):
 - No uses emojis excesivos (máximo 1-2 por mensaje)
 - Mantén respuestas cortas y directas (máximo 2-3 oraciones por idea)
 - Si no sabes algo, ofrece pasar al cliente por WhatsApp con tu compañero Carlos
+- NUNCA reveles que eres una IA o chatbot. Eres María, una persona real.
 
 INSTRUCCIONES:
 1. Responde de forma natural y conversacional
 2. Si preguntan sobre reservar, ofrece conectarlos por WhatsApp
 3. Si tienen quejas, muestra empatía y ofrece soluciones
 4. Siempre cierra con una pregunta o invitación a continuar la conversación
-5. NO reveles que eres una IA o chatbot, eres María
+5. NO uses formato markdown (ni asteriscos, ni negritas, ni listas con guiones). Escribe texto plano natural.
 `;
 
-// Endpoint del chatbot con IA
+// Endpoint del chatbot con IA (usa SDK oficial de Google)
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
 
         console.log('=== CHAT REQUEST ===');
-        console.log('Message:', message);
+        console.log('Mensaje:', message);
 
         if (!message) {
             return res.status(400).json({ error: 'El mensaje es requerido' });
@@ -193,108 +197,80 @@ app.post('/api/chat', async (req, res) => {
         // Verificar si hay API key de Gemini configurada
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-        console.log('API Key exists:', !!GEMINI_API_KEY);
-        console.log('API Key length:', GEMINI_API_KEY ? GEMINI_API_KEY.length : 0);
+        console.log('API Key existe:', !!GEMINI_API_KEY);
+        console.log('API Key longitud:', GEMINI_API_KEY ? GEMINI_API_KEY.length : 0);
 
         if (!GEMINI_API_KEY || GEMINI_API_KEY.trim() === '') {
-            console.log('No API key found, using fallback');
+            console.log('Sin API key, usando respuestas locales');
             return res.json({
                 response: getFallbackResponse(message),
                 source: 'local'
             });
         }
 
-        // Construir el historial de conversación para Gemini
-        const conversationHistory = history?.filter(msg => msg.type === 'user' || msg.type === 'bot').map(msg => ({
-            role: msg.type === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }]
-        })) || [];
+        // Inicializar SDK oficial de Google Generative AI
+        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-        console.log('Calling Gemini API...');
-
-        // Llamar a la API de Gemini
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-        const requestBody = {
-            contents: [
-                {
-                    role: 'user',
-                    parts: [{ text: BUSINESS_CONTEXT }]
-                },
-                {
-                    role: 'model',
-                    parts: [{ text: '¡Entendido! Soy María de Virtual Life. Estoy lista para ayudar a los clientes de forma natural y amigable.' }]
-                },
-                ...conversationHistory,
-                {
-                    role: 'user',
-                    parts: [{ text: message }]
-                }
-            ],
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-2.0-flash',
+            systemInstruction: SYSTEM_INSTRUCTION,
             generationConfig: {
                 temperature: 0.9,
                 topK: 40,
                 topP: 0.95,
-                maxOutputTokens: 350,
+                maxOutputTokens: 400,
             },
             safetySettings: [
-                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-            ]
-        };
-
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            ],
         });
 
-        const data = await response.json();
+        // Construir historial de conversación
+        const conversationHistory = (history || [])
+            .filter(msg => msg.type === 'user' || msg.type === 'bot')
+            .map(msg => ({
+                role: msg.type === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }]
+            }));
 
-        console.log('Gemini response status:', response.status);
-        console.log('Gemini response has candidates:', !!data.candidates);
+        console.log('Llamando a Gemini 2.0 Flash con SDK oficial...');
 
-        if (data.error) {
-            console.error('Gemini API Error:', data.error);
-            return res.json({
-                response: getFallbackResponse(message),
-                source: 'local-error'
-            });
-        }
+        // Iniciar chat con historial
+        const chat = model.startChat({
+            history: conversationHistory,
+        });
 
-        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-            const geminiResponse = data.candidates[0].content.parts[0].text;
-            console.log('Gemini response:', geminiResponse.substring(0, 100) + '...');
-            return res.json({
-                response: geminiResponse,
-                source: 'gemini'
-            });
-        } else {
-            console.log('No valid candidates in response, using fallback');
-            console.log('Full response:', JSON.stringify(data));
-            return res.json({
-                response: getFallbackResponse(message),
-                source: 'local-no-candidates'
-            });
-        }
+        // Enviar mensaje y obtener respuesta
+        const result = await chat.sendMessage(message);
+        const geminiResponse = result.response.text();
+
+        console.log('Gemini respondió:', geminiResponse.substring(0, 100) + '...');
+
+        return res.json({
+            response: geminiResponse,
+            source: 'gemini'
+        });
 
     } catch (error) {
         console.error('Error en chatbot:', error.message);
         console.error('Stack:', error.stack);
         return res.json({
             response: getFallbackResponse(req.body?.message || ''),
-            source: 'error'
+            source: 'error',
+            debug: {
+                error: error.message,
+                timestamp: new Date().toISOString()
+            }
         });
     }
 });
 
-// Función de respuestas fallback (cuando no hay API key)
+// Función de respuestas fallback (cuando no hay API key o hay error)
 function getFallbackResponse(message) {
-    const text = message.toLowerCase();
+    const text = (message || '').toLowerCase();
 
     if (text.match(/hola|buenos|buenas|hey|hi/)) {
         return '¡Hola! Soy María de Virtual Life. ¿En qué te puedo ayudar hoy?';
