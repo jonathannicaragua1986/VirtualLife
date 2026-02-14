@@ -1,24 +1,18 @@
-// Vercel Serverless Function - Diagnóstico del Chatbot
-
+// Endpoint de diagnóstico del Chatbot
 module.exports = function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const grokKey = process.env.GROK_API_KEY || '';
+    const geminiKey = process.env.GEMINI_API_KEY || '';
 
-    const hasApiKey = !!process.env.GEMINI_API_KEY;
-    const apiKeyLength = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0;
-    const apiKeyPreview = process.env.GEMINI_API_KEY
-        ? process.env.GEMINI_API_KEY.substring(0, 6) + '...'
-        : 'No configurada';
+    const hasGrok = grokKey.length > 0;
+    const hasGemini = geminiKey.length > 0;
 
     res.status(200).json({
-        geminiConfigured: hasApiKey,
-        apiKeyLength: apiKeyLength,
-        apiKeyPreview: apiKeyPreview,
-        model: 'gemini-2.0-flash',
-        sdk: '@google/generative-ai (SDK oficial)',
-        status: hasApiKey
-            ? '✅ Gemini AI activo - Modelo gemini-2.0-flash'
-            : '⚠️ Usando respuestas locales (configura GEMINI_API_KEY en las variables de entorno)',
-        nodeVersion: process.version,
-        timestamp: new Date().toISOString()
+        grokConfigured: hasGrok,
+        grokPreview: hasGrok ? grokKey.substring(0, 8) + '...' : 'No configurada',
+        geminiConfigured: hasGemini,
+        geminiPreview: hasGemini ? geminiKey.substring(0, 8) + '...' : 'No configurada',
+        primaryEngine: hasGrok ? 'Grok (xAI) - grok-2-latest' : hasGemini ? 'Gemini - gemini-2.0-flash' : 'Respuestas locales',
+        fallbackEngine: hasGemini ? 'Gemini - gemini-2.0-flash' : 'Respuestas locales',
+        status: hasGrok ? '✅ Grok AI activo (motor principal)' : hasGemini ? '⚠️ Solo Gemini disponible' : '❌ Sin APIs configuradas'
     });
 };
