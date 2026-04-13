@@ -1,13 +1,16 @@
 /**
  * VIRTUAL LIFE - Servicio de Chatbot con IA (Lógica Centralizada)
- * Conexión directa a LLMs: Gemini (Principal) → Grok (Respaldo)
  *
- * Este servicio SIEMPRE intenta usar IA real.
- * Las respuestas locales son solo el último recurso en caso de fallo total.
+ * Arquitectura:
+ *   Motor 1 (Principal)  → Gemini 3.1 (flash-lite-preview → pro-preview)
+ *   Motor 2 (Respaldo)   → Gemini 2.5 (pro → flash)
+ *   Motor 3 (Emergencia) → Respuestas locales (sin conexión a internet)
  *
- * Versión: 5.0.0 - Actualizado con Gemini 2.5 Pro/Flash GA + Flash-Lite
+ * Versión: 6.0.0
  * Fecha: Abril 2026
  */
+
+"use strict";
 
 // ============================================================
 // INSTRUCCIONES DEL SISTEMA - DOSSIER COMERCIAL INTEGRADO
@@ -141,572 +144,374 @@ María: "¡Qué buen plan! Para Masaya (Zona 3) un sábado por la noche te recom
 - Los precios empresariales son +IVA, siempre mencionarlo.
 - Si el cliente necesita algo que no encaja en los paquetes, ofrece hacer una cotización personalizada vía WhatsApp.`;
 
-// ============================================
-// CONFIGURACIÓN AVANZADA
-// ============================================
+// ============================================================
+// CONFIGURACIÓN DE MODELOS
+// Orden de prioridad: Gemini 3.1 → Gemini 2.5 (respaldo)
+// ============================================================
 
-// Timeout para llamadas a APIs externas (25 segundos)
-const API_TIMEOUT_MS = 25000;
-
-// Máximo de reintentos por rate limit
-const MAX_RATE_LIMIT_RETRIES = 2;
-
-// Delay base entre reintentos (ms)
-const RETRY_DELAY_BASE_MS = 1500;
-
-// Modelos disponibles por proveedor (actualizados abril 2026)
-// gemini-3.1-flash-live-preview: modelo de baja latencia lanzado el 26-mar-2026
-//   → Se intenta primero. Si no soporta texto vía REST, el sistema baja automáticamente.
-// gemini-2.5-pro / 2.5-flash: GA estables, respaldo garantizado.
-// NOTA: gemini-2.0-flash se retira el 1 junio 2026, ya no lo usamos
-const GEMINI_MODELS = [
-  "gemini-3.1-flash-lite-preview", // Motor 3.1 rápido y eficiente - Principal funcional
-  "gemini-3.1-pro-preview", // Motor 3.1 avanzado - Respaldo si hay cuota
-  "gemini-2.5-pro", // GA estable - respaldo serie anterior
-  "gemini-2.5-flash", // GA estable
+/** Motor Principal: Gemini 3.1 (se intenta primero) */
+const GEMINI_31_MODELS = [
+  "gemini-3.1-flash-lite-preview", // Rápido y eficiente, menor latencia
+  "gemini-3.1-pro-preview",        // Alta calidad, mayor capacidad de razonamiento
 ];
-const GROK_MODELS = ["grok-3-mini", "grok-2-1212"];
 
-// ============================================
+/** Motor de Respaldo: Gemini 2.5 (se activa si Gemini 3.1 falla) */
+const GEMINI_25_MODELS = [
+  "gemini-2.5-pro",   // Máxima inteligencia GA estable
+  "gemini-2.5-flash", // Rápido y eficiente GA estable
+];
+
+/** Lista unificada: 3.1 primero, 2.5 como respaldo automático */
+const ALL_GEMINI_MODELS = [...GEMINI_31_MODELS, ...GEMINI_25_MODELS];
+
+// ============================================================
+// CONFIGURACIÓN AVANZADA
+// ============================================================
+
+const API_TIMEOUT_MS       = 25000; // Timeout por llamada (25 segundos)
+const MAX_RATE_LIMIT_RETRIES = 2;   // Reintentos por rate limit (429)
+const RETRY_DELAY_BASE_MS  = 1500;  // Delay base entre reintentos
+
+// ============================================================
 // UTILIDADES
-// ============================================
+// ============================================================
 
 /**
- * Logger centralizado con timestamp
+ * Logger centralizado con nivel, componente y timestamp.
  */
 function log(level, component, message, data = null) {
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [${level.toUpperCase()}] [${component}]`;
+  const ts     = new Date().toISOString();
+  const prefix = `[${ts}] [${level.toUpperCase()}] [${component}]`;
+  const logFn  = level === "error" ? console.error
+               : level === "warn"  ? console.warn
+               : console.log;
 
   if (data) {
-    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](
-      `${prefix} ${message}`,
-      typeof data === "string" ? data : JSON.stringify(data).substring(0, 300),
-    );
+    const dataStr = typeof data === "string" ? data : JSON.stringify(data).substring(0, 300);
+    logFn(`${prefix} ${message}`, dataStr);
   } else {
-    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](
-      `${prefix} ${message}`,
-    );
+    logFn(`${prefix} ${message}`);
   }
 }
 
 /**
- * Crea un AbortController con timeout para fetch
+ * Crea un AbortController con timeout automático para fetch.
  */
 function createTimeoutController(ms = API_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
+  const timeoutId  = setTimeout(() => controller.abort(), ms);
   return { controller, timeoutId };
 }
 
 /**
- * Espera un tiempo determinado (para reintentos)
+ * Espera asíncrona (para reintentos con backoff exponencial).
  */
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Calcular delay de escritura natural
+ * Calcula un delay de escritura natural según la longitud del texto.
  */
 function calculateTypingDelay(text) {
   if (!text) return 800;
-  const baseDelay = 600;
-  const charDelay = 10;
-  const maxDelay = 3000;
-  let delay = baseDelay + text.length * charDelay;
+  const base      = 600;
+  const max       = 3000;
   const variation = Math.floor(Math.random() * 300) - 150;
-  return Math.min(Math.max(delay + variation, baseDelay), maxDelay);
+  return Math.min(Math.max(base + text.length * 10 + variation, base), max);
 }
 
 /**
- * Sanitizar texto de entrada - elimina caracteres peligrosos
+ * Sanitiza el texto de entrada: límite de 1000 chars y elimina caracteres de control.
  */
 function sanitizeInput(text) {
   if (!text || typeof text !== "string") return "";
   return text
     .trim()
-    .substring(0, 1000) // Límite de caracteres
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ""); // Eliminar caracteres de control
+    .substring(0, 1000)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 }
 
 /**
- * Limpiar respuesta de IA - quitar markdown y formateo no deseado
+ * Limpia la respuesta de IA: quita markdown no deseado.
  */
 function cleanAIResponse(text) {
   if (!text || typeof text !== "string") return "";
   return text
     .replace(/\*\*([^*]+)\*\*/g, "$1") // Quitar negritas
-    .replace(/\*([^*]+)\*/g, "$1") // Quitar itálicas
-    .replace(/^#+\s/gm, "") // Quitar encabezados markdown
-    .replace(/^[-*]\s/gm, "• ") // Convertir listas a bullet simple
-    .replace(/`([^`]+)`/g, "$1") // Quitar código inline
-    .replace(/\n{3,}/g, "\n\n") // Limitar saltos de línea
+    .replace(/\*([^*]+)\*/g,     "$1") // Quitar itálicas
+    .replace(/^#+\s/gm,          "")   // Quitar encabezados
+    .replace(/^[-*]\s/gm,        "• ") // Listas → bullet simple
+    .replace(/`([^`]+)`/g,       "$1") // Quitar código inline
+    .replace(/\n{3,}/g,          "\n\n")
     .trim();
 }
 
-// ============================================
-// RESPUESTAS FALLBACK LOCAL (ACTUALIZADAS)
-// ============================================
+// ============================================================
+// RESPUESTAS LOCALES DE EMERGENCIA
+// Se usan SOLO si Gemini 3.1 y Gemini 2.5 fallan completamente
+// ============================================================
 
-/**
- * Respuestas Fallback Local - SOLO se usan si TODAS las APIs fallan
- * Actualizadas con los nuevos paquetes y precios del Dossier Comercial
- */
 function getFallbackResponse(message) {
   const text = (message || "").toLowerCase().trim();
 
-  // Saludos
-  if (
-    text.match(
-      /^(hola|buenos|buenas|hey|hi|qué tal|que tal|saludos|buen día|buen dia)/,
-    )
-  ) {
-    const greetings = [
-      "¡Hola! Soy María de Virtual Life. Disculpa, estoy teniendo un pequeño inconveniente técnico, pero puedo ayudarte por WhatsApp al +505 7779-1433. ¿Te escribo por ahí?",
-      "¡Hey! Soy María, de Virtual Life. Estoy con una falla temporal, pero si me escribís al WhatsApp +505 7779-1433 te atiendo al toque. ¿Dale?",
+  if (text.match(/^(hola|buenos|buenas|hey|hi|qué tal|que tal|saludos|buen día|buen dia)/)) {
+    const options = [
+      "¡Hola! Soy María de Virtual Life. Tengo un problemita técnico momentáneo, pero podés escribirme al WhatsApp +505 7779-1433 y te atiendo al toque. ¿Dale?",
+      "¡Hey! Soy María, de Virtual Life. Estoy con una falla temporal, pero si me escribís al WhatsApp +505 7779-1433 te ayudo enseguida.",
     ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
+    return options[Math.floor(Math.random() * options.length)];
   }
 
-  // Precios y paquetes
   if (text.match(/precio|costo|cuanto|cuánto|tarifa|vale|pagar|paquete|pack/)) {
-    return "¡Claro! Nuestros paquetes particulares van desde $20 (Quick Dive, 1 visor, 1 hora) hasta $120 (Inmersión Total, 3 visores + TV, 4 horas). Los precios varían según la zona donde sea tu evento. Para empresas tenemos paquetes desde $150 +IVA. ¿Te gustaría una cotización personalizada? Escríbenos al WhatsApp +505 7779-1433.";
+    return "¡Claro! Nuestros paquetes particulares van desde $20 (Quick Dive, 1 visor, 1 hora) hasta $120 (Inmersión Total, 3 visores + TV, 4 horas). Los precios varían según la zona. Para empresas tenemos desde $150+IVA. ¿Querés una cotización? Escríbenos al WhatsApp +505 7779-1433.";
   }
 
-  // Cotización
   if (text.match(/cotiza|presupuest|personaliz/)) {
-    return "¡Con gusto te hago una cotización! Necesito saber: ¿dónde sería el evento?, ¿cuándo? y ¿para cuántas personas? Si me escribís al WhatsApp +505 7779-1433 te armo la cotización al instante.";
+    return "¡Con gusto te hago una cotización! Necesito saber: ¿dónde sería el evento?, ¿cuándo? y ¿para cuántas personas? Escribinos al WhatsApp +505 7779-1433 y te la armamos al instante.";
   }
 
-  // Horarios
   if (text.match(/horario|hora|abre|cierra|abierto|abrimos|abren|cerrado/)) {
-    return "Nuestros horarios de atención son: Lunes a Jueves 12pm a 10pm, Viernes 12pm a 12am, Sábado 10am a 1am, Domingo 10am a 11pm. ¡Te esperamos!";
+    return "Nuestros horarios: Lunes a Jueves 12pm-10pm, Viernes 12pm-12am, Sábado 10am-1am, Domingo 10am-11pm. ¡Te esperamos!";
   }
 
-  // Reservas
   if (text.match(/reserv|turno|cita|agendar|apartar/)) {
-    return "Para reservar, escríbenos por WhatsApp al +505 7779-1433 y te confirmamos disponibilidad al momento. Solo necesitamos fecha, lugar y tipo de evento. ¡Te va a encantar!";
+    return "Para reservar, escribinos al WhatsApp +505 7779-1433 y confirmamos disponibilidad al momento. Solo necesitamos fecha, lugar y tipo de evento.";
   }
 
-  // Ubicación y cobertura
-  if (
-    text.match(
-      /ubica|direc|donde|dónde|quedan|llegar|mapa|zona|cobertura|managua|masaya|granada|león|leon/,
-    )
-  ) {
-    return "Somos un servicio MÓVIL, nosotros llegamos a donde sea tu evento. Cubrimos toda Nicaragua: Managua, Masaya, Granada, León, Chinandega, Rivas, Matagalpa, Estelí y más. Los precios varían según la zona. Escríbenos al +505 7779-1433 para cotizar.";
+  if (text.match(/ubica|direc|donde|dónde|quedan|llegar|mapa|zona|cobertura|managua|masaya|granada|león|leon/)) {
+    return "Somos un servicio MÓVIL: nosotros llegamos donde sea tu evento. Cubrimos toda Nicaragua con precios según zona. Escribinos al +505 7779-1433 para cotizar.";
   }
 
-  // Juegos
   if (text.match(/juego|game|jugar|títulos|catálogo|catalogo/)) {
-    return "Tenemos más de 50 juegos: Beat Saber, Arizona Sunshine 2, Phasmophobia, Gorilla Tag, Among Us VR, Superhot VR, Batman VR, Job Simulator y muchos más. Para ver el catálogo completo, escríbenos al +505 7779-1433.";
+    return "Tenemos más de 50 juegos: Beat Saber, Phasmophobia, Gorilla Tag, Among Us VR, Superhot VR, Batman VR, Job Simulator y muchos más. Para el catálogo completo, escribinos al +505 7779-1433.";
   }
 
-  // Cumpleaños
   if (text.match(/cumple|fiesta|birthday|celebr/)) {
-    return '¡Los cumpleaños son nuestra especialidad! Te recomiendo el paquete "Inmersión Total": 3 visores + TV monitor + 4 horas de juego desde $120 en zona base. ¡Todos ven la acción en la TV! Para cotizar según tu zona, escríbenos al WhatsApp +505 7779-1433.';
+    return '¡Los cumpleaños son nuestra especialidad! El paquete "Inmersión Total" es el más popular: 3 visores + TV + 4 horas desde $120. Para cotizar según tu zona, escribinos al WhatsApp +505 7779-1433.';
   }
 
-  // Empresas / Corporativo
   if (text.match(/empresa|corporat|team build|feria|marca|activa|branding/)) {
-    return "Para empresas tenemos 3 paquetes: Activación de Marca ($150+IVA), Feria Corp ($280+IVA) y Team Building del Futuro ($350+IVA). Los precios varían por zona e incluyen operadores capacitados en RRPP. Escríbenos al +505 7779-1433 para una cotización corporativa.";
+    return "Para empresas tenemos: Activación de Marca ($150+IVA), Feria Corp ($280+IVA) y Team Building del Futuro ($350+IVA). Todos varían por zona. Escribinos al +505 7779-1433.";
   }
 
-  // Edades
   if (text.match(/edad|niño|niña|menor|chiquit|pequeñ/)) {
-    return "La edad mínima recomendada es 8 años por el tamaño del casco. Para juegos de terror, sugerimos mayores de 14 años. ¡Los peques la pasan genial con Gorilla Tag y Job Simulator!";
+    return "Edad mínima: 8 años. Para juegos de terror recomendamos mayores de 14. ¡Los peques la pasan increíble con Gorilla Tag y Job Simulator!";
   }
 
-  // Mareo
   if (text.match(/mare|mareo|nause|vómit|vomit|dizzy/)) {
-    return "Es muy poco probable que te marees porque tu cuerpo se mueve igual que en el juego (movimiento 1:1). Además tenemos juegos de baja intensidad perfectos para principiantes.";
+    return "El mareo es muy raro porque tu cuerpo se mueve igual que en el juego (movimiento 1:1). Además tenemos juegos de baja intensidad perfectos para principiantes.";
   }
 
-  // Despedidas
-  if (
-    text.match(/^(gracias|gracia|adios|adiós|bye|chao|hasta luego|nos vemos)/)
-  ) {
-    return "¡Fue un gusto! Si después necesitás algo, aquí estamos. También podés escribirnos al WhatsApp +505 7779-1433 para reservar. ¡Te esperamos con la mejor experiencia VR de Nicaragua!";
+  if (text.match(/^(gracias|gracia|adios|adiós|bye|chao|hasta luego|nos vemos)/)) {
+    return "¡Fue un gusto! Si después necesitás algo, aquí estamos. Podés escribirnos al WhatsApp +505 7779-1433 para reservar. ¡Te esperamos!";
   }
 
-  // Respuesta genérica mejorada
-  return "Disculpa, estoy teniendo un pequeño inconveniente técnico. Para atenderte mejor, escríbenos al WhatsApp +505 7779-1433 y con gusto te ayudamos con toda la información, cotizaciones y reservas. ¡Gracias por tu paciencia!";
+  return "Disculpá, tengo un pequeño inconveniente técnico. Para atenderte mejor, escribinos al WhatsApp +505 7779-1433 y con gusto te ayudamos. ¡Gracias por tu paciencia!";
 }
 
-// ============================================
-// API: GEMINI (Google) - MOTOR PRINCIPAL
-// ============================================
+// ============================================================
+// MOTOR DE IA: GEMINI (Google)
+// Llama secuencialmente: Gemini 3.1 → Gemini 2.5 (respaldo)
+// ============================================================
 
 /**
- * API Call: Gemini (Google) - MOTOR PRINCIPAL
- * Usa la API v1beta con los modelos GA estables de Gemini 2.5
- * Soporta múltiples modelos con fallback automático
- * Incluye reintento para rate limits (429)
+ * Realiza la llamada a la API de Gemini para un modelo específico.
+ * Retorna el texto limpio o lanza un error.
+ */
+async function callGeminiModel(apiKey, modelName, history, message) {
+  const { controller, timeoutId } = createTimeoutController();
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    // Construir historial de conversación
+    const contents = [
+      ...history
+        .filter((msg) => msg && typeof msg.text === "string" && msg.text.trim())
+        .map((msg) => ({
+          role:  msg.type === "user" ? "user" : "model",
+          parts: [{ text: msg.text }],
+        })),
+      { role: "user", parts: [{ text: message }] },
+    ];
+
+    const response = await fetch(url, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      signal:  controller.signal,
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        contents,
+        generationConfig: {
+          temperature:     0.85,
+          maxOutputTokens: 800,
+          topP:            0.95,
+          topK:            40,
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT",        threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HATE_SPEECH",       threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+        ],
+      }),
+    });
+
+    clearTimeout(timeoutId);
+
+    // Manejar errores HTTP
+    if (response.status === 404) {
+      throw Object.assign(new Error(`Modelo no disponible (404)`), { code: "NOT_FOUND" });
+    }
+    if (response.status === 429) {
+      throw Object.assign(new Error(`Rate limit excedido (429)`), { code: "RATE_LIMIT" });
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`HTTP ${response.status}: ${body.substring(0, 150)}`);
+    }
+
+    const data = await response.json();
+
+    // Verificar bloqueo por seguridad
+    if (data?.candidates?.[0]?.finishReason === "SAFETY") {
+      throw new Error("Respuesta bloqueada por filtros de seguridad");
+    }
+
+    // Verificar error de cuota en el cuerpo
+    if (data?.error?.message?.includes("quota")) {
+      throw Object.assign(new Error("Cuota excedida"), { code: "QUOTA" });
+    }
+
+    const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      throw new Error("Respuesta vacía del modelo");
+    }
+
+    return cleanAIResponse(candidateText);
+
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error(`Timeout (${API_TIMEOUT_MS}ms) en ${modelName}`);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Orquestador Gemini: itera sobre todos los modelos (3.1 → 2.5).
+ * Para rate limit aplica backoff exponencial antes de pasar al siguiente.
  */
 async function callGeminiAPI(apiKey, history, message) {
-  let lastError = null;
+  const errors = [];
 
-  for (const modelName of GEMINI_MODELS) {
+  for (const modelName of ALL_GEMINI_MODELS) {
+    const isModel31 = GEMINI_31_MODELS.includes(modelName);
+    const tier      = isModel31 ? "3.1" : "2.5 (respaldo)";
+
     let retries = 0;
 
     while (retries <= MAX_RATE_LIMIT_RETRIES) {
-      const { controller, timeoutId } = createTimeoutController();
-
       try {
-        log(
-          "info",
-          "Gemini",
-          `Intentando modelo: ${modelName} (intento ${retries + 1})...`,
-        );
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        log("info", "Gemini", `[${tier}] Intentando ${modelName} (intento ${retries + 1})...`);
+        const text = await callGeminiModel(apiKey, modelName, history, message);
+        log("info", "Gemini", `✅ [${tier}] ${modelName} respondió (${text.length} chars).`);
+        return { text, model: modelName, tier };
 
-        // Construir historial de conversación para Gemini
-        const contents = [];
-        for (const msg of history) {
-          if (msg.text && msg.text.trim()) {
-            contents.push({
-              role: msg.type === "user" ? "user" : "model",
-              parts: [{ text: msg.text }],
-            });
-          }
-        }
-        contents.push({ role: "user", parts: [{ text: message }] });
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-            contents: contents,
-            generationConfig: {
-              temperature: 0.85,
-              maxOutputTokens: 800,
-              topP: 0.95,
-              topK: 40,
-            },
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-              {
-                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_ONLY_HIGH",
-              },
-            ],
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        // Rate Limit - reintentar con delay exponencial
-        if (response.status === 429) {
+      } catch (err) {
+        if (err.code === "RATE_LIMIT" && retries < MAX_RATE_LIMIT_RETRIES) {
           retries++;
-          if (retries <= MAX_RATE_LIMIT_RETRIES) {
-            const waitTime = RETRY_DELAY_BASE_MS * Math.pow(2, retries - 1);
-            log(
-              "warn",
-              "Gemini",
-              `Rate Limit 429 en ${modelName}. Reintentando en ${waitTime}ms...`,
-            );
-            await sleep(waitTime);
-            continue;
-          }
-          log(
-            "warn",
-            "Gemini",
-            `Rate Limit 429 persistente en ${modelName}. Saltando al siguiente modelo.`,
-          );
-          lastError = "Rate Limit 429 persistente";
-          break;
+          const wait = RETRY_DELAY_BASE_MS * Math.pow(2, retries - 1);
+          log("warn", "Gemini", `Rate limit en ${modelName}. Reintentando en ${wait}ms...`);
+          await sleep(wait);
+          continue;
         }
 
-        if (response.status === 404) {
-          log(
-            "warn",
-            "Gemini",
-            `${modelName}: No encontrado (404), probando siguiente...`,
-          );
-          lastError = `${modelName} no disponible`;
-          break;
-        }
-
-        if (!response.ok) {
-          const errorBody = await response.text().catch(() => "");
-          log(
-            "warn",
-            "Gemini",
-            `${modelName} HTTP ${response.status}`,
-            errorBody.substring(0, 200),
-          );
-          lastError = `HTTP ${response.status}`;
-          break;
-        }
-
-        const data = await response.json();
-        const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (candidateText) {
-          const cleaned = cleanAIResponse(candidateText);
-          log(
-            "info",
-            "Gemini",
-            `✅ ${modelName} respondió correctamente (${cleaned.length} chars).`,
-          );
-          return cleaned;
-        }
-
-        // Verificar si la respuesta fue bloqueada por seguridad
-        const blockReason = data?.candidates?.[0]?.finishReason;
-        if (blockReason === "SAFETY") {
-          log(
-            "warn",
-            "Gemini",
-            `${modelName}: Respuesta bloqueada por filtros de seguridad.`,
-          );
-          lastError = "Respuesta bloqueada por seguridad";
-          break;
-        }
-
-        if (data?.error) {
-          const errorMsg = data.error.message || "Error desconocido";
-          if (typeof errorMsg === "string" && errorMsg.includes("quota")) {
-            lastError = "Quota excedida";
-            break;
-          }
-          lastError = errorMsg;
-        } else {
-          lastError = `${modelName}: respuesta vacía`;
-        }
-        break; // No reintentar si no es 429
-      } catch (e) {
-        clearTimeout(timeoutId);
-        if (e.name === "AbortError") {
-          lastError = `${modelName}: timeout (${API_TIMEOUT_MS}ms)`;
-          log("warn", "Gemini", lastError);
-        } else {
-          log("error", "Gemini", `Error en ${modelName}:`, e.message);
-          lastError = e.message;
-        }
-        break; // No reintentar errores de red
+        // Error definitivo para este modelo, pasar al siguiente
+        log("warn", "Gemini", `[${tier}] ${modelName} falló: ${err.message}`);
+        errors.push(`${modelName}: ${err.message}`);
+        break;
       }
     }
   }
 
-  throw new Error(`Gemini falló: ${lastError}`);
+  throw new Error(`Gemini falló en todos los modelos:\n${errors.join("\n")}`);
 }
 
-// ============================================
-// API: GROK (xAI) - MOTOR DE RESPALDO
-// ============================================
+// ============================================================
+// PROCESADOR PRINCIPAL DE MENSAJES
+// Flujo: Gemini 3.1 → Gemini 2.5 → Respuesta local de emergencia
+// ============================================================
 
-/**
- * API Call: Grok (xAI) - MOTOR DE RESPALDO
- * Actualizado a grok-3-mini con fallback a grok-2-1212
- */
-async function callGrokAPI(apiKey, history, message) {
-  let lastError = null;
-
-  for (const modelName of GROK_MODELS) {
-    const { controller, timeoutId } = createTimeoutController();
-
-    try {
-      log("info", "Grok", `Intentando modelo: ${modelName}...`);
-
-      const messages = [
-        { role: "system", content: SYSTEM_INSTRUCTION },
-        ...history
-          .filter(
-            (msg) => msg && typeof msg.text === "string" && msg.text.trim(),
-          )
-          .map((msg) => ({
-            role: msg.type === "user" ? "user" : "assistant",
-            content: msg.text,
-          })),
-        { role: "user", content: message },
-      ];
-
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: messages,
-          temperature: 0.85,
-          max_tokens: 800,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      // Rate Limit en Grok
-      if (response.status === 429) {
-        log(
-          "warn",
-          "Grok",
-          `${modelName}: Rate Limit 429. Probando siguiente modelo...`,
-        );
-        lastError = `${modelName}: Rate Limit`;
-        continue;
-      }
-
-      if (response.status === 404) {
-        log(
-          "warn",
-          "Grok",
-          `${modelName}: No encontrado (404). Probando siguiente...`,
-        );
-        lastError = `${modelName} no disponible`;
-        continue;
-      }
-
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => "Sin detalle");
-        log(
-          "warn",
-          "Grok",
-          `${modelName} HTTP ${response.status}`,
-          errorBody.substring(0, 200),
-        );
-        lastError = `${modelName}: HTTP ${response.status}`;
-        continue;
-      }
-
-      const data = await response.json();
-
-      if (data.choices && data.choices[0]?.message?.content) {
-        const cleaned = cleanAIResponse(data.choices[0].message.content);
-        log(
-          "info",
-          "Grok",
-          `✅ ${modelName} respondió correctamente (${cleaned.length} chars).`,
-        );
-        return cleaned;
-      }
-
-      lastError = data.error?.message || `${modelName}: respuesta vacía`;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === "AbortError") {
-        lastError = `${modelName}: timeout (${API_TIMEOUT_MS}ms)`;
-        log("warn", "Grok", lastError);
-      } else {
-        log("error", "Grok", `Error en ${modelName}:`, error.message);
-        lastError = error.message;
-      }
-    }
-  }
-
-  throw new Error(`Grok falló: ${lastError}`);
-}
-
-// ============================================
-// PROCESADOR PRINCIPAL
-// ============================================
-
-/**
- * Procesador Principal de Mensajes
- * Flujo: Gemini (principal) → Grok (respaldo) → Fallback Local (emergencia)
- */
 async function processChatMessage(message, history, env) {
-  const startTime = Date.now();
-  const GEMINI_KEY = env?.GEMINI_API_KEY || "";
-  const GROK_KEY = env?.GROK_API_KEY || "";
+  const startTime  = Date.now();
+  const GEMINI_KEY = (env?.GEMINI_API_KEY || "").trim();
 
-  // Validar y sanitizar mensaje
+  // Sanitizar entrada
   const sanitizedMessage = sanitizeInput(message);
   if (!sanitizedMessage) {
     return {
-      response:
-        "¡Hola! Parece que no recibí tu mensaje. ¿Podrías escribirme de nuevo?",
-      source: "local",
-      delay: 800,
+      response: "¡Hola! Parece que no recibí tu mensaje. ¿Podrías escribirme de nuevo?",
+      source:   "local",
+      delay:    800,
     };
   }
 
-  // Sanitizar historial - filtrar mensajes inválidos y limitar cantidad
+  // Sanitizar historial (máximo 15 mensajes de contexto)
   const safeHistory = Array.isArray(history)
     ? history
         .filter((msg) => msg && typeof msg.text === "string" && msg.text.trim())
-        .slice(-15) // Máximo 15 mensajes de contexto
+        .slice(-15)
     : [];
 
   let responseText = "";
-  let source = "local";
-  let apiErrors = [];
+  let source       = "local";
+  let usedModel    = null;
 
-  // 1. Intentar Gemini PRIMERO (motor principal)
-  if (GEMINI_KEY.trim()) {
+  // --- Motor IA: Gemini (3.1 → 2.5 automático) ---
+  if (GEMINI_KEY) {
     try {
-      log(
-        "info",
-        "ChatService",
-        "🚀 Conectando con Gemini (motor principal)...",
-      );
-      responseText = await callGeminiAPI(
-        GEMINI_KEY,
-        safeHistory,
-        sanitizedMessage,
-      );
-      source = "gemini";
-    } catch (e) {
-      log("warn", "ChatService", "⚠️ Gemini falló:", e.message);
-      apiErrors.push(`Gemini: ${e.message}`);
+      log("info", "ChatService", "🚀 Iniciando llamada a Gemini IA...");
+      const result = await callGeminiAPI(GEMINI_KEY, safeHistory, sanitizedMessage);
+      responseText = result.text;
+      usedModel    = result.model;
+      source       = result.tier === "3.1" ? "gemini-3.1" : "gemini-2.5";
+    } catch (err) {
+      log("warn", "ChatService", "⚠️ Gemini (todos los modelos) falló:", err.message);
     }
   } else {
-    log("warn", "ChatService", "⚠️ Gemini API key no configurada.");
+    log("warn", "ChatService", "⚠️ GEMINI_API_KEY no configurada. Usando respaldo local.");
   }
 
-  // 2. Si Gemini falló, intentar Grok como respaldo
-  if (!responseText && GROK_KEY.trim()) {
-    try {
-      log("info", "ChatService", "🔄 Conectando con Grok (respaldo)...");
-      responseText = await callGrokAPI(GROK_KEY, safeHistory, sanitizedMessage);
-      source = "grok";
-    } catch (e) {
-      log("warn", "ChatService", "⚠️ Grok falló:", e.message);
-      apiErrors.push(`Grok: ${e.message}`);
-    }
-  } else if (!responseText && !GROK_KEY.trim()) {
-    log("warn", "ChatService", "⚠️ Grok API key no configurada.");
-  }
-
-  // 3. Fallback Local SOLO si ambas IAs fallaron
+  // --- Respaldo final: respuestas locales de emergencia ---
   if (!responseText) {
-    log(
-      "warn",
-      "ChatService",
-      "❌ Ambas IAs fallaron. Usando respuesta de emergencia.",
-      apiErrors,
-    );
+    log("warn", "ChatService", "🔴 Activando respuestas de emergencia locales.");
     responseText = getFallbackResponse(sanitizedMessage);
-    source = "local";
+    source       = "local";
   }
 
   const elapsed = Date.now() - startTime;
-  const delay = calculateTypingDelay(responseText);
+  const delay   = calculateTypingDelay(responseText);
 
   log(
     "info",
     "ChatService",
-    `✅ Respuesta generada (${source}) en ${elapsed}ms. Delay: ${delay}ms`,
+    `✅ Respuesta lista | fuente: ${source}${usedModel ? ` | modelo: ${usedModel}` : ""} | tiempo: ${elapsed}ms | delay UI: ${delay}ms`,
   );
 
   return { response: responseText, source, delay };
 }
 
-module.exports = { processChatMessage, cleanAIResponse, sanitizeInput };
+// ============================================================
+// EXPORTS
+// ============================================================
+
+module.exports = {
+  processChatMessage,
+  cleanAIResponse,
+  sanitizeInput,
+  GEMINI_31_MODELS,
+  GEMINI_25_MODELS,
+};

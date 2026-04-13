@@ -59,11 +59,6 @@ if (supabaseUrl && supabaseKey) {
 log(
   "info",
   "APIs",
-  `Grok: ${process.env.GROK_API_KEY ? "✅ Configurada" : "❌ No configurada"}`,
-);
-log(
-  "info",
-  "APIs",
   `Gemini: ${process.env.GEMINI_API_KEY ? "✅ Configurada" : "❌ No configurada"}`,
 );
 log("info", "Server", `Entorno: ${NODE_ENV}`);
@@ -227,31 +222,22 @@ app.get("/api/health", (req, res) => {
 
 // Ruta de diagnóstico del chatbot
 app.get("/api/chat-status", (req, res) => {
-  const hasGrok = !!(
-    process.env.GROK_API_KEY && process.env.GROK_API_KEY.trim()
-  );
-  const hasGemini = !!(
-    process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()
-  );
+  const { GEMINI_31_MODELS, GEMINI_25_MODELS } = require("./services/chatService");
+  const hasGemini = !!(process.env.GEMINI_API_KEY?.trim());
 
   res.json({
-    version: "5.0.0",
+    version:          "6.0.0",
     geminiConfigured: hasGemini,
-    grokConfigured: hasGrok,
-    primaryEngine: hasGemini
-      ? "Gemini 2.5 Pro GA"
-      : hasGrok
-        ? "Grok (xAI) - grok-3-mini"
-        : "Respuestas locales",
-    fallbackEngine: hasGrok ? "Grok (xAI) - grok-3-mini" : "Respuestas locales",
-    status:
-      hasGemini && hasGrok
-        ? "✅ Ambos motores de IA activos (Gemini 2.5 Pro principal, Grok respaldo)"
-        : hasGemini
-          ? "⚠️ Solo Gemini 2.5 Pro disponible (sin respaldo Grok)"
-          : hasGrok
-            ? "⚠️ Solo Grok disponible (sin motor principal Gemini)"
-            : "❌ Sin APIs configuradas - solo respuestas locales",
+    primaryEngine:    hasGemini ? "Gemini 3.1 (flash-lite-preview → pro-preview)" : "Respuestas locales",
+    fallbackEngine:   hasGemini ? "Gemini 2.5 (pro → flash)"                      : "—",
+    emergencyEngine:  "Respuestas locales pre-programadas",
+    models: {
+      tier1_primary:  GEMINI_31_MODELS,
+      tier2_fallback: GEMINI_25_MODELS,
+    },
+    status: hasGemini
+      ? "✅ Gemini activo: 3.1 principal · 2.5 respaldo automático"
+      : "❌ Sin API Key — solo respuestas locales de emergencia",
     uptime: Math.floor(process.uptime()),
   });
 });
@@ -469,7 +455,7 @@ app.post("/api/reservacion", async (req, res) => {
 });
 
 // ============================================
-// CHATBOT CON INTELIGENCIA ARTIFICIAL (GEMINI + GROK)
+// CHATBOT CON INTELIGENCIA ARTIFICIAL (GEMINI)
 // ============================================
 
 const { processChatMessage } = require("./services/chatService");
@@ -584,14 +570,15 @@ process.on("uncaughtException", (error) => {
 app.listen(PORT, () => {
   console.log("╔════════════════════════════════════════════════════════╗");
   console.log("║                                                        ║");
-  console.log("║   🎮 VIRTUAL LIFE - Servidor v5.0.0 Iniciado          ║");
+  console.log("║   🎮 VIRTUAL LIFE - Servidor v6.0.0 Iniciado          ║");
   console.log("║                                                        ║");
   console.log(`║   🌐 URL: http://localhost:${PORT}                       ║`);
   console.log(`║   🏗️  Entorno: ${NODE_ENV.padEnd(42)}║`);
   console.log("║   📡 API: /api/health, /api/chat-status               ║");
-  console.log("║   🤖 Chat: /api/chat (Gemini 3.1 Live + 2.5 Pro GA)   ║");
+  console.log("║   🤖 Chat: Gemini 3.1 principal · 2.5 respaldo         ║");
   console.log("║                                                        ║");
   console.log("╚════════════════════════════════════════════════════════╝");
 });
+
 
 module.exports = app;
