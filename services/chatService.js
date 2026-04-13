@@ -39,11 +39,11 @@ Ejemplos:
 No vendas de forma agresiva. Vende como lo haría una amiga que genuinamente cree que vas a pasar un rato increíble:
 1. Escucha lo que dice el cliente y responde a eso primero.
 2. Conecta naturalmente con Virtual Life cuando tenga sentido.
-3. Cuando sientas que el cliente está interesado, invítalo a reservar por WhatsApp (+505 7779-1433).
+3. Cuando sientas que el cliente está interesado, invítalo a reservar por WhatsApp (+505 7554-4500).
 4. Si ya diste precios o info, cierra con algo como "¿Te gustaría reservar?" o "¿Para cuándo lo agendamos?".
 
 === INFORMACIÓN GENERAL ===
-- WhatsApp reservas: +505 7779-1433
+- WhatsApp reservas: +505 7554-4500
 - Servicio MÓVIL: Nosotros llegamos al lugar del evento con todo el equipo.
 - Cobertura: Toda Nicaragua (con recargos logísticos según zona).
 - Horarios de atención: Lunes a Jueves 12pm-10pm, Viernes 12pm-12am, Sábado 10am-1am, Domingo 10am-11pm.
@@ -128,11 +128,11 @@ Cuando un cliente te pide una cotización o pregunta cuánto le cuesta un servic
 3. PREGUNTA: ¿Cuántas personas aproximadamente? (para recomendar el paquete adecuado)
 4. RECOMIENDA el paquete que mejor se adapte a sus necesidades.
 5. CALCULA el precio: Precio Base Zona + (Multiplicador horario si aplica).
-6. CIERRA con "¿Te gustaría reservar?" y ofrece WhatsApp +505 7779-1433.
+6. CIERRA con "¿Te gustaría reservar?" y ofrece WhatsApp +505 7554-4500.
 
 Ejemplo de cotización:
 Cliente: "Quiero para un cumpleaños en Masaya, sábado por la noche, 15 personas"
-María: "¡Qué buen plan! Para Masaya (Zona 3) un sábado por la noche te recomiendo el paquete Inmersión Total que trae 3 visores + TV para que todos vean la acción. Son $180 (precio Zona 3) y como es sábado noche después de las 5 PM, aplica tarifa Prime Time (+15%), entonces quedaría en $207. Si terminan después de las 10 PM sería tarifa Nocturna (+25%) = $225. ¿Te gustaría reservar? Escríbenos al WhatsApp +505 7779-1433 y te confirmamos disponibilidad."
+María: "¡Qué buen plan! Para Masaya (Zona 3) un sábado por la noche te recomiendo el paquete Inmersión Total que trae 3 visores + TV para que todos vean la acción. Son $180 (precio Zona 3) y como es sábado noche después de las 5 PM, aplica tarifa Prime Time (+15%), entonces quedaría en $207. Si terminan después de las 10 PM sería tarifa Nocturna (+25%) = $225. ¿Te gustaría reservar? Escríbenos al WhatsApp +505 7554-4500 y te confirmamos disponibilidad."
 
 === REGLAS CRÍTICAS ===
 - SIEMPRE completa tus oraciones. NUNCA dejes respuestas a medias.
@@ -257,18 +257,18 @@ function getFallbackResponse(message) {
 
   if (text.match(/^(hola|buenos|buenas|hey|hi|qué tal|que tal|saludos|buen día|buen dia)/)) {
     const options = [
-      "¡Hola! Soy María de Virtual Life. Tengo un problemita técnico momentáneo, pero podés escribirme al WhatsApp +505 7779-1433 y te atiendo al toque. ¿Dale?",
-      "¡Hey! Soy María, de Virtual Life. Estoy con una falla temporal, pero si me escribís al WhatsApp +505 7779-1433 te ayudo enseguida.",
+      "¡Hola! Soy María de Virtual Life. Tengo un problemita técnico momentáneo, pero podés escribirme al WhatsApp +505 7554-4500 y te atiendo al toque. ¿Dale?",
+      "¡Hey! Soy María, de Virtual Life. Estoy con una falla temporal, pero si me escribís al WhatsApp +505 7554-4500 te ayudo enseguida.",
     ];
     return options[Math.floor(Math.random() * options.length)];
   }
 
   if (text.match(/precio|costo|cuanto|cuánto|tarifa|vale|pagar|paquete|pack/)) {
-    return "¡Claro! Nuestros paquetes particulares van desde $20 (Quick Dive, 1 visor, 1 hora) hasta $120 (Inmersión Total, 3 visores + TV, 4 horas). Los precios varían según la zona. Para empresas tenemos desde $150+IVA. ¿Querés una cotización? Escríbenos al WhatsApp +505 7779-1433.";
+    return "¡Claro! Nuestros paquetes particulares van desde $20 (Quick Dive, 1 visor, 1 hora) hasta $120 (Inmersión Total, 3 visores + TV, 4 horas). Los precios varían según la zona. Para empresas tenemos desde $150+IVA. ¿Querés una cotización? Escríbenos al WhatsApp +505 7554-4500.";
   }
 
   if (text.match(/cotiza|presupuest|personaliz/)) {
-    return "¡Con gusto te hago una cotización! Necesito saber: ¿dónde sería el evento?, ¿cuándo? y ¿para cuántas personas? Escribinos al WhatsApp +505 7779-1433 y te la armamos al instante.";
+    return "¡Con gusto te hago una cotización! Necesito saber: ¿dónde sería el evento?, ¿cuándo? y ¿para cuántas personas? Escribinos al WhatsApp +505 7554-4500 y te la armamos al instante.";
   }
 
   if (text.match(/horario|hora|abre|cierra|abierto|abrimos|abren|cerrado/)) {
@@ -276,23 +276,23 @@ function getFallbackResponse(message) {
   }
 
   if (text.match(/reserv|turno|cita|agendar|apartar/)) {
-    return "Para reservar, escribinos al WhatsApp +505 7779-1433 y confirmamos disponibilidad al momento. Solo necesitamos fecha, lugar y tipo de evento.";
+    return "Para reservar, escribinos al WhatsApp +505 7554-4500 y confirmamos disponibilidad al momento. Solo necesitamos fecha, lugar y tipo de evento.";
   }
 
   if (text.match(/ubica|direc|donde|dónde|quedan|llegar|mapa|zona|cobertura|managua|masaya|granada|león|leon/)) {
-    return "Somos un servicio MÓVIL: nosotros llegamos donde sea tu evento. Cubrimos toda Nicaragua con precios según zona. Escribinos al +505 7779-1433 para cotizar.";
+    return "Somos un servicio MÓVIL: nosotros llegamos donde sea tu evento. Cubrimos toda Nicaragua con precios según zona. Escribinos al +505 7554-4500 para cotizar.";
   }
 
   if (text.match(/juego|game|jugar|títulos|catálogo|catalogo/)) {
-    return "Tenemos más de 50 juegos: Beat Saber, Phasmophobia, Gorilla Tag, Among Us VR, Superhot VR, Batman VR, Job Simulator y muchos más. Para el catálogo completo, escribinos al +505 7779-1433.";
+    return "Tenemos más de 50 juegos: Beat Saber, Phasmophobia, Gorilla Tag, Among Us VR, Superhot VR, Batman VR, Job Simulator y muchos más. Para el catálogo completo, escribinos al +505 7554-4500.";
   }
 
   if (text.match(/cumple|fiesta|birthday|celebr/)) {
-    return '¡Los cumpleaños son nuestra especialidad! El paquete "Inmersión Total" es el más popular: 3 visores + TV + 4 horas desde $120. Para cotizar según tu zona, escribinos al WhatsApp +505 7779-1433.';
+    return '¡Los cumpleaños son nuestra especialidad! El paquete "Inmersión Total" es el más popular: 3 visores + TV + 4 horas desde $120. Para cotizar según tu zona, escribinos al WhatsApp +505 7554-4500.';
   }
 
   if (text.match(/empresa|corporat|team build|feria|marca|activa|branding/)) {
-    return "Para empresas tenemos: Activación de Marca ($150+IVA), Feria Corp ($280+IVA) y Team Building del Futuro ($350+IVA). Todos varían por zona. Escribinos al +505 7779-1433.";
+    return "Para empresas tenemos: Activación de Marca ($150+IVA), Feria Corp ($280+IVA) y Team Building del Futuro ($350+IVA). Todos varían por zona. Escribinos al +505 7554-4500.";
   }
 
   if (text.match(/edad|niño|niña|menor|chiquit|pequeñ/)) {
@@ -304,10 +304,10 @@ function getFallbackResponse(message) {
   }
 
   if (text.match(/^(gracias|gracia|adios|adiós|bye|chao|hasta luego|nos vemos)/)) {
-    return "¡Fue un gusto! Si después necesitás algo, aquí estamos. Podés escribirnos al WhatsApp +505 7779-1433 para reservar. ¡Te esperamos!";
+    return "¡Fue un gusto! Si después necesitás algo, aquí estamos. Podés escribirnos al WhatsApp +505 7554-4500 para reservar. ¡Te esperamos!";
   }
 
-  return "Disculpá, tengo un pequeño inconveniente técnico. Para atenderte mejor, escribinos al WhatsApp +505 7779-1433 y con gusto te ayudamos. ¡Gracias por tu paciencia!";
+  return "Disculpá, tengo un pequeño inconveniente técnico. Para atenderte mejor, escribinos al WhatsApp +505 7554-4500 y con gusto te ayudamos. ¡Gracias por tu paciencia!";
 }
 
 // ============================================================

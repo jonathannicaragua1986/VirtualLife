@@ -290,19 +290,214 @@
 
                         const data = await response.json();
                         return { text: data.response, source: data.source };
+<script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONOS SVG INTEGRADOS ---
+        const IconWrapper = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        // Iconos individuales
+        const Menu = (props) => <IconWrapper {...props}><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></IconWrapper>;
+        const X = (props) => <IconWrapper {...props}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></IconWrapper>;
+        const Users = (props) => <IconWrapper {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></IconWrapper>;
+        const Zap = (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconWrapper>;
+        const ChevronRight = (props) => <IconWrapper {...props}><path d="m9 18 6-6-6-6" /></IconWrapper>;
+        const Star = (props) => <IconWrapper {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></IconWrapper>;
+        const Gamepad2 = (props) => <IconWrapper {...props}><line x1="6" x2="10" y1="12" y2="12" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="15" x2="15.01" y1="13" y2="13" /><line x1="18" x2="18.01" y1="11" y2="11" /><rect width="20" height="12" x="2" y="6" rx="2" /></IconWrapper>;
+        const Ghost = (props) => <IconWrapper {...props}><path d="M9 10h.01" /><path d="M15 10h.01" /><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" /></IconWrapper>;
+        const Crosshair = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><line x1="22" x2="18" y1="12" y2="12" /><line x1="6" x2="2" y1="12" y2="12" /><line x1="12" x2="12" y1="6" y2="2" /><line x1="12" x2="12" y1="22" y2="18" /></IconWrapper>;
+        const Music = (props) => <IconWrapper {...props}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></IconWrapper>;
+        const Smile = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" x2="9.01" y1="9" y2="9" /><line x1="15" x2="15.01" y1="9" y2="9" /></IconWrapper>;
+        const Monitor = (props) => <IconWrapper {...props}><rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" /></IconWrapper>;
+        const Calendar = (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></IconWrapper>;
+        const Gift = (props) => <IconWrapper {...props}><rect x="3" y="8" width="18" height="4" rx="1" /><path d="M12 8v13" /><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" /><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" /></IconWrapper>;
+        const CreditCard = (props) => <IconWrapper {...props}><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></IconWrapper>;
+        const HelpCircle = (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></IconWrapper>;
+        const ChevronDown = (props) => <IconWrapper {...props}><path d="m6 9 6 6 6-6" /></IconWrapper>;
+        const MapPin = (props) => <IconWrapper {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></IconWrapper>;
+        const Phone = (props) => <IconWrapper {...props}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></IconWrapper>;
+        const Mail = (props) => <IconWrapper {...props}><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></IconWrapper>;
+        const Instagram = (props) => <IconWrapper {...props}><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></IconWrapper>;
+        const Facebook = (props) => <IconWrapper {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></IconWrapper>;
+        const Cpu = (props) => <IconWrapper {...props}><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" /><path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" /></IconWrapper>;
+        const Wifi = (props) => <IconWrapper {...props}><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></IconWrapper>;
+        const MessageCircle = (props) => <IconWrapper {...props}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></IconWrapper>;
+        const Send = (props) => <IconWrapper {...props}><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></IconWrapper>;
+        const Bot = (props) => <IconWrapper {...props}><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></IconWrapper>;
+
+        // --- COMPONENTE LOGO INTELIGENTE (Soluciona el problema de la imagen) ---
+        const SmartLogo = ({ size = "w-14 h-14 md:w-16 md:h-16" }) => {
+            const [src, setSrc] = useState("image_02a7fd.jpg"); // Intento 1
+            const [errorCount, setErrorCount] = useState(0);
+            const [hasError, setHasError] = useState(false);
+
+            const handleError = () => {
+                if (errorCount === 0) {
+                    // Si falla .jpg, intentamos .jpg.png (común en Windows con extensiones ocultas)
+                    setSrc("image_02a7fd.jpg.png");
+                    setErrorCount(1);
+                } else if (errorCount === 1) {
+                    // Si falla eso, intentamos solo .png
+                    setSrc("image_02a7fd.png");
+                    setErrorCount(2);
+                } else {
+                    // Si todo falla, mostramos el icono
+                    setHasError(true);
+                }
+            };
+
+            if (hasError) {
+                return (
+                    <div className={`relative ${size} bg-black border border-cyan-400 p-2 rounded-full flex items-center justify-center`}>
+                        <Users className="text-cyan-400" size={24} />
+                    </div>
+                );
+            }
+
+            return (
+                <div className="relative group cursor-pointer">
+                    <div className="absolute inset-0 bg-cyan-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
+                    <img
+                        src={src}
+                        alt="VIRTUAL LIFE Logo"
+                        className={`relative ${size} rounded-full border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)] object-cover bg-black`}
+                        onError={handleError}
+                    />
+                </div>
+            );
+        };
+
+        // --- COMPONENTE CHATBOT CON PERSONALIDAD HUMANA (v2.0) ---
+        const ChatBot = ({ openWhatsApp }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [chatState, setChatState] = useState('closed'); // closed, connecting, connected
+            const [messages, setMessages] = useState([]);
+            const [inputValue, setInputValue] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const [retryCount, setRetryCount] = useState(0);
+            const messagesEndRef = useRef(null);
+            const inputRef = useRef(null);
+            const messagesRef = useRef([]); // Persistir mensajes entre aperturas
+            const hasConnectedRef = useRef(false);
+
+            // Información del agente
+            const agent = {
+                name: 'María',
+                role: 'Servicio al Cliente',
+                image: 'maria-agente.png'
+            };
+
+            // Scroll automático al último mensaje
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            // Sincronizar ref con estado
+            useEffect(() => {
+                messagesRef.current = messages;
+            }, [messages]);
+
+            // Efecto de conexión al abrir el chat
+            useEffect(() => {
+                if (isOpen && chatState === 'closed') {
+                    // Si ya se conectó antes, restaurar mensajes existentes
+                    if (hasConnectedRef.current && messagesRef.current.length > 0) {
+                        setChatState('connected');
+                        setMessages(messagesRef.current);
+                        return;
+                    }
+
+                    setChatState('connecting');
+                    setTimeout(() => {
+                        setChatState('connected');
+                        hasConnectedRef.current = true;
+                        const hour = new Date().getHours();
+                        let greeting = 'Buenas tardes';
+                        if (hour < 12) greeting = 'Buenos días';
+                        if (hour >= 19) greeting = 'Buenas noches';
+
+                        setMessages([{
+                            type: 'bot',
+                            text: `¡${greeting}! Soy María, del equipo de Virtual Life. ¿En qué puedo ayudarte hoy?`
+                        }]);
+                    }, 1800);
+                }
+            }, [isOpen]);
+
+            // Enfocar input al conectar
+            useEffect(() => {
+                if (chatState === 'connected' && inputRef.current) {
+                    setTimeout(() => inputRef.current?.focus(), 100);
+                }
+            }, [chatState]);
+
+            // Cerrar chat (preservar mensajes)
+            const handleClose = () => {
+                setIsOpen(false);
+                setChatState('closed');
+                // NO reseteamos messages para que persistan
+            };
+
+            // Enviar mensaje - función central que acepta texto directo
+            const sendMessage = async (text) => {
+                const msgText = (text || inputValue || '').trim();
+                if (!msgText || chatState !== 'connected' || isTyping) return;
+
+                const userMessage = { type: 'user', text: msgText };
+                const updatedMessages = [...messages, userMessage];
+                setMessages(updatedMessages);
+                setInputValue('');
+                setIsTyping(true);
+
+                // Función para intentar enviar con reintento
+                const attemptSend = async (attempt = 1) => {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: msgText,
+                                history: updatedMessages.slice(-15)
+                            }),
+                            signal: controller.signal
+                        });
+
+                        clearTimeout(timeoutId);
+
+                        if (response.status === 429) {
+                            return { text: 'Estoy recibiendo muchos mensajes en este momento. Esperá un momentito y volvé a intentar. 😊', source: 'rate-limit' };
+                        }
+
+                        if (!response.ok) {
+                            if (attempt < 2) {
+                                await new Promise(r => setTimeout(r, 1500));
+                                return attemptSend(attempt + 1);
+                            }
+                            throw new Error('Error del servidor: ' + response.status);
+                        }
+
+                        const data = await response.json();
+                        return { text: data.response, source: data.source };
 
                     } catch (error) {
                         if (error.name === 'AbortError') {
                             if (attempt < 2) {
                                 return attemptSend(attempt + 1);
                             }
-                            return { text: 'Disculpa, la respuesta está tardando más de lo normal. Intentá de nuevo en un momento o escríbenos al WhatsApp +505 7779-1433.', source: 'timeout' };
+                            return { text: 'Disculpa, la respuesta está tardando más de lo normal. Intentá de nuevo en un momento o escríbenos al WhatsApp +505 7554-4500.', source: 'timeout' };
                         }
                         if (attempt < 2) {
                             await new Promise(r => setTimeout(r, 1000));
                             return attemptSend(attempt + 1);
                         }
-                        return { text: 'Disculpa, estoy teniendo un problema de conexión. Para atenderte al instante, escríbenos por WhatsApp al +505 7779-1433. ¡Gracias por tu paciencia!', source: 'error' };
+                        return { text: 'Disculpa, estoy teniendo un problema de conexión. Para atenderte al instante, escríbenos por WhatsApp al +505 7554-4500. ¡Gracias por tu paciencia!', source: 'error' };
                     }
                 };
 
@@ -669,7 +864,7 @@
 
             // Función para abrir WhatsApp con mensaje predefinido
             const openWhatsApp = (message = "Hola! Quiero reservar una sesión de VR") => {
-                const phone = "5057779143"; // Número de WhatsApp
+                const phone = "50575544500"; // Número de WhatsApp
                 const encodedMessage = encodeURIComponent(message);
                 window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
             };
@@ -1164,103 +1359,6 @@
                     </section>
                     
                     
-{/* --- REVIEWS --- */}
-                    <section className="py-20 px-6 bg-[#0a0a0a]">
-                        <div className="max-w-7xl mx-auto">
-                            <div className="text-center mb-16">
-                                <h2 className="text-3xl md:text-5xl font-black italic mb-4">VOCES DEL <span className="text-cyan-500">METAVERSO</span></h2>
-                            </div>
-
-                            <div className="grid md:grid-cols-3 gap-8">
-                                {REVIEWS.map((review, idx) => (
-                                    <div key={idx} className="bg-[#111] p-8 rounded-2xl border border-white/5 relative group hover:-translate-y-2 transition-transform duration-300">
-                                        <div className="absolute -top-4 -right-4 text-6xl text-white/5 font-serif">"</div>
-                                        <div className="flex gap-1 mb-4">
-                                            {[...Array(review.stars)].map((_, i) => (
-                                                <Star key={i} size={16} className="text-yellow-500 fill-yellow-500" />
-                                            ))}
-                                        </div>
-                                        <p className="text-gray-300 mb-6 italic leading-relaxed">"{review.text}"</p>
-                                        <div>
-                                            <div className="font-bold text-white">{review.name}</div>
-                                            <div className="text-xs text-cyan-500 font-bold uppercase tracking-wider">{review.role}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* --- FAQ --- */}
-                    <section className="py-20 px-6 border-t border-white/5 bg-[#0e0e0e]">
-                        <div className="max-w-3xl mx-auto">
-                            <div className="text-center mb-12">
-                                <div className="flex items-center justify-center gap-2 mb-2">
-                                    <HelpCircle className="text-purple-500" />
-                                    <span className="text-purple-500 font-bold uppercase tracking-widest text-xs">Dudas Frecuentes</span>
-                                </div>
-                                <h2 className="text-3xl md:text-4xl font-black text-white">ANTES DE ENTRAR</h2>
-                            </div>
-
-                            <div className="space-y-4">
-                                {FAQS.map((faq, idx) => (
-                                    <div key={idx} className="bg-[#161616] rounded-xl overflow-hidden border border-white/5">
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleFaq(idx)}
-                                            className="w-full flex justify-between items-center p-6 text-left hover:bg-white/5 transition-colors"
-                                            aria-expanded={openFaq === idx}
-                                        >
-                                            <span className="font-bold text-lg text-white">{faq.q}</span>
-                                            <ChevronDown className={`text-gray-400 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        <div className={`px-6 text-gray-400 leading-relaxed overflow-hidden transition-all duration-300 ${openFaq === idx ? 'max-h-40 pb-6 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            {faq.a}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* --- FOOTER --- */}
-                    <footer id="contacto" className="bg-[#050505] pt-24 pb-12 px-6 border-t border-white/10">
-                        <div className="max-w-7xl mx-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-                                <div className="col-span-1 md:col-span-2">
-                                    <div className="flex items-center gap-4 mb-6">
-                                        {/* SmartLogo en Footer */}
-                                        <SmartLogo size="w-16 h-16" />
-
-                                        <div className="flex flex-col justify-center">
-                                            <span className="text-2xl font-black italic text-white">VIRTUAL<span className="text-cyan-500">LIFE</span></span>
-                                            <span className="text-xs text-gray-500 uppercase tracking-widest">El Futuro es Hoy</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-500 max-w-sm mb-6">
-                                        El futuro del entretenimiento está aquí. Vení y experimentá la tecnología de realidad virtual más inmersiva de Nicaragua.
-                                    </p>
-                                    <div className="flex gap-4">
-                                        <a href="https://instagram.com/virtuallife" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Síguenos en Instagram"><Instagram size={18} /></a>
-                                        <a href="https://www.facebook.com/realidadvirtualnicaragua" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Síguenos en Facebook"><Facebook size={18} /></a>
-                                        <a href="mailto:reservas@virtuallife.com" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Envíanos un correo"><Mail size={18} /></a>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-white font-bold uppercase tracking-wider mb-6">Contacto</h4>
-                                    <ul className="space-y-4 text-gray-400 text-sm">
-                                        <li className="flex items-start gap-3">
-                                            <MapPin size={18} className="text-cyan-500 shrink-0" />
-                                            Managua, Nicaragua
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <Phone size={18} className="text-cyan-500 shrink-0" />
-                                            +505 7779-1433
-                                        </li>
-                                        <li className="flex items-center gap-3">
-                                            <Mail size={18} className="text-cyan-500 shrink-0" />
-                                            reservas@virtuallife.com
                                         </li>
                                     </ul>
                                 </div>
