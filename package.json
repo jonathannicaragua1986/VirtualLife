@@ -1,10 +1,11 @@
 {
     "name": "virtuallife-vr",
-    "version": "1.0.0",
-    "description": "VIRTUAL LIFE - Centro de Realidad Virtual Profesional",
+    "version": "5.0.0",
+    "description": "VIRTUAL LIFE - Servicio Móvil de Realidad Virtual - Nicaragua",
     "scripts": {
         "start": "node server.js",
-        "dev": "node server.js"
+        "dev": "node server.js",
+        "vercel-build": "echo 'No build needed'"
     },
     "keywords": [
         "vr",
@@ -15,14 +16,12 @@
     "author": "Virtual Life",
     "license": "MIT",
     "dependencies": {
-        "@google/generative-ai": "^0.24.1",
-        "@supabase/supabase-js": "^2.95.3",
-        "compression": "^1.7.4",
+        "@supabase/supabase-js": "^2.49.4",
+        "compression": "^1.8.0",
         "cors": "^2.8.5",
-        "dotenv": "^17.2.4",
-        "express": "^4.18.2",
-        "helmet": "^7.1.0",
-        "playwright": "^1.58.2"
+        "dotenv": "^16.4.7",
+        "express": "^5.1.0",
+        "helmet": "^8.1.0"
     },
     "engines": {
         "node": ">=18.0.0"

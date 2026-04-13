@@ -176,14 +176,18 @@
             );
         };
 
-        // --- COMPONENTE CHATBOT CON PERSONALIDAD HUMANA ---
+        // --- COMPONENTE CHATBOT CON PERSONALIDAD HUMANA (v2.0) ---
         const ChatBot = ({ openWhatsApp }) => {
             const [isOpen, setIsOpen] = useState(false);
             const [chatState, setChatState] = useState('closed'); // closed, connecting, connected
             const [messages, setMessages] = useState([]);
             const [inputValue, setInputValue] = useState('');
             const [isTyping, setIsTyping] = useState(false);
+            const [retryCount, setRetryCount] = useState(0);
             const messagesEndRef = useRef(null);
+            const inputRef = useRef(null);
+            const messagesRef = useRef([]); // Persistir mensajes entre aperturas
+            const hasConnectedRef = useRef(false);
 
             // Información del agente
             const agent = {
@@ -197,14 +201,25 @@
                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, [messages]);
 
+            // Sincronizar ref con estado
+            useEffect(() => {
+                messagesRef.current = messages;
+            }, [messages]);
+
             // Efecto de conexión al abrir el chat
             useEffect(() => {
                 if (isOpen && chatState === 'closed') {
+                    // Si ya se conectó antes, restaurar mensajes existentes
+                    if (hasConnectedRef.current && messagesRef.current.length > 0) {
+                        setChatState('connected');
+                        setMessages(messagesRef.current);
+                        return;
+                    }
+
                     setChatState('connecting');
-                    // Simular conexión
                     setTimeout(() => {
                         setChatState('connected');
-                        // Mensaje de bienvenida personalizado
+                        hasConnectedRef.current = true;
                         const hour = new Date().getHours();
                         let greeting = 'Buenas tardes';
                         if (hour < 12) greeting = 'Buenos días';
@@ -214,280 +229,102 @@
                             type: 'bot',
                             text: `¡${greeting}! Soy María, del equipo de Virtual Life. ¿En qué puedo ayudarte hoy?`
                         }]);
-                    }, 2000);
+                    }, 1800);
                 }
             }, [isOpen]);
 
-            // Cerrar chat
+            // Enfocar input al conectar
+            useEffect(() => {
+                if (chatState === 'connected' && inputRef.current) {
+                    setTimeout(() => inputRef.current?.focus(), 100);
+                }
+            }, [chatState]);
+
+            // Cerrar chat (preservar mensajes)
             const handleClose = () => {
                 setIsOpen(false);
                 setChatState('closed');
-                setMessages([]);
+                // NO reseteamos messages para que persistan
             };
 
-            // Respuestas conversacionales e inteligentes
-            const getResponse = (input, messageHistory) => {
-                const text = input.toLowerCase().trim();
-                const words = text.split(/\s+/);
+            // Enviar mensaje - función central que acepta texto directo
+            const sendMessage = async (text) => {
+                const msgText = (text || inputValue || '').trim();
+                if (!msgText || chatState !== 'connected' || isTyping) return;
 
-                // Función para elegir respuesta aleatoria
-                const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-                // Detectar si mencionan el nombre María
-                const mentionsMaria = text.includes('maria') || text.includes('maría');
-
-                // Analizar intención del mensaje
-                const isGreeting = text.match(/^(hola|hi|hey|buenas?|buenos|saludos|qué tal|que tal|como est[aá]s|buen dia|buen día|buenas tardes|buenas noches)/i);
-                const isQuestion = text.includes('?') || text.match(/^(que|qué|cual|cuál|como|cómo|donde|dónde|cuando|cuándo|cuanto|cuánto|por que|por qué|quien|quién)/);
-                const isShortMessage = words.length <= 3;
-                const isAffirmative = text.match(/^(si|sí|ok|okay|dale|claro|va|vamos|listo|perfecto|bueno|esta bien|está bien|de acuerdo|por supuesto|obvio|seguro|eso|correcto|exacto|así es)$/i);
-                const isNegative = text.match(/^(no|nop|nope|nel|para nada|negativo|tampoco|nunca)$/i);
-
-                // Obtener último mensaje del bot para contexto
-                const lastBotMessage = messageHistory && messageHistory.length > 0
-                    ? messageHistory.filter(m => m.type === 'bot').slice(-1)[0]?.text || ''
-                    : '';
-                const wasAskingAboutReservation = lastBotMessage.toLowerCase().includes('reserv') || lastBotMessage.toLowerCase().includes('whatsapp') || lastBotMessage.toLowerCase().includes('apartar');
-                const wasAskingQuestion = lastBotMessage.includes('?');
-
-                // === SALUDOS (con o sin nombre) ===
-                if (isGreeting || (isShortMessage && mentionsMaria && !isQuestion)) {
-                    const greetingResponses = [
-                        '¡Hola! Qué gusto saludarte. Cuéntame, ¿en qué te puedo ayudar hoy?',
-                        '¡Hola! Me da gusto atenderte. ¿Qué te trae por aquí? ¿Buscas info sobre nuestras experiencias VR?',
-                        '¡Hey! Bienvenido. Estoy aquí para ayudarte. ¿Qué necesitas saber?',
-                        '¡Hola! Soy María del equipo de Virtual Life. Cuéntame qué te gustaría saber.',
-                    ];
-                    if (mentionsMaria) {
-                        return pick([
-                            '¡Hola! Qué lindo que me saludes por mi nombre. Cuéntame, ¿en qué te puedo ayudar?',
-                            '¡Hola! Aquí estoy para ayudarte. ¿Qué necesitas saber sobre Virtual Life?',
-                            '¡Hey! Un gusto. Dime, ¿qué te gustaría saber? ¿Precios, horarios, juegos...?'
-                        ]);
-                    }
-                    return pick(greetingResponses);
-                }
-
-                // === RESPUESTAS AFIRMATIVAS (depende del contexto) ===
-                if (isAffirmative) {
-                    if (wasAskingAboutReservation) {
-                        setTimeout(() => {
-                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
-                        }, 1000);
-                        return 'Perfecto, te paso con mi compañero Carlos por WhatsApp para que concrete tu reserva. ¡Te va a encantar la experiencia!';
-                    }
-                    return pick([
-                        '¡Genial! ¿Hay algo más en lo que te pueda ayudar?',
-                        'Perfecto. ¿Qué más te gustaría saber?',
-                        '¡Excelente! Estoy aquí si necesitas más información.'
-                    ]);
-                }
-
-                // === RESPUESTAS NEGATIVAS ===
-                if (isNegative) {
-                    if (wasAskingQuestion) {
-                        return pick([
-                            'No hay problema. ¿Hay algo más en lo que te pueda ayudar?',
-                            'Entendido. ¿Tienes alguna otra duda?',
-                            'Ok, sin problema. ¿Necesitas información sobre algo más?'
-                        ]);
-                    }
-                    return 'Entendido. Cuéntame entonces, ¿qué te gustaría saber?';
-                }
-
-                // === PREGUNTAS SOBRE QUIÉN ES / CONVERSACIONALES ===
-                if (text.match(/quien eres|quién eres|eres real|eres humana|eres robot|eres bot|eres una persona|como te llamas|cómo te llamas/)) {
-                    return pick([
-                        'Soy María, trabajo en el área de atención al cliente de Virtual Life. Llevo más de un año aquí y me encanta ayudar a la gente a descubrir la realidad virtual. ¿En qué te puedo ayudar?',
-                        'Me llamo María, soy parte del equipo de Virtual Life. Estoy aquí para resolver tus dudas y ayudarte a vivir una experiencia increíble. ¿Qué te gustaría saber?'
-                    ]);
-                }
-
-                // === CÓMO ESTÁS / CONVERSACIÓN CASUAL ===
-                if (text.match(/como est[aá]s|cómo est[aá]s|que tal est[aá]s|cómo te va|como te va|todo bien|qué onda|que onda/)) {
-                    return pick([
-                        '¡Muy bien, gracias por preguntar! Aquí atendiendo con todo el gusto. ¿Y tú cómo estás? ¿Buscas algo en especial?',
-                        '¡Todo excelente! Gracias por preguntar. Cuéntame, ¿qué te trae por aquí?',
-                        '¡De maravilla! Listo para ayudarte. ¿Qué necesitas saber?'
-                    ]);
-                }
-
-                // === PRECIOS ===
-                if (text.match(/precio|costo|cuánto|cuanto|tarifa|vale|cuesta|sale|cobran|pagan|pago|dinero|plata|lana/)) {
-                    return pick([
-                        'Claro que sí. Mira, manejamos tres opciones:\n\n• 30 min → $15,000 por persona\n• 1 hora → $25,000 (el más popular)\n• 1 hora y media → $35,000\n\nTodo incluye instructor y +50 juegos. ¿Para cuántas personas sería?',
-                        'Con gusto te explico. Tenemos sesiones de 30 min ($15,000), 1 hora ($25,000) y 90 min ($35,000). La mayoría elige 1 hora porque alcanzas a probar varios juegos. ¿Te interesa alguno?'
-                    ]);
-                }
-
-                // === HORARIOS ===
-                if (text.match(/horario|hora|abre|cierra|abierto|abren|cierran|atienden|trabajan|disponible/)) {
-                    return pick([
-                        'Nuestros horarios:\n\n• Lunes a Jueves: 12pm a 10pm\n• Viernes: 12pm a 12am\n• Sábado: 10am a 1am\n• Domingo: 10am a 11pm\n\n¿Cuándo te gustaría venir?',
-                        'Abrimos todos los días. Entre semana desde las 12, y fines de semana desde las 10am. Los viernes y sábados cerramos más tarde. ¿Qué día tienes en mente?'
-                    ]);
-                }
-
-                // === RESERVAR ===
-                if (text.match(/reserv|apartar|agendar|turno|cita|book|ir|visitar|quiero ir|vamos a ir|queremos ir/)) {
-                    return pick([
-                        '¡Genial que quieras venir! Para reservar, te paso con mi compañero por WhatsApp y te confirma disponibilidad al momento. ¿Te parece?',
-                        'Perfecto, me encanta. La forma más rápida es por WhatsApp, ahí te confirman el turno en segundos. ¿Quieres que te conecte?'
-                    ]);
-                }
-
-                // === JUEGOS ===
-                if (text.match(/juego|game|que hay|qué hay|que tienen|qué tienen|catalogo|catálogo|lista|jugar|puedo jugar|opciones|títulos/)) {
-                    return pick([
-                        'Tenemos +50 juegos para todos los gustos:\n\n• Beat Saber → música y ritmo\n• Arizona Sunshine 2 → zombies, intenso\n• Phasmophobia → terror con amigos\n• Gorilla Tag → viral, muy divertido\n• Batman VR → el más nuevo\n\n¿Qué tipo de experiencia te llama la atención?',
-                        'Nuestra biblioteca es enorme. Hay de acción, terror, música, deportes, aventura... ¿Vienes solo, con amigos o familia? Así te recomiendo mejor.'
-                    ]);
-                }
-
-                // === TERROR / MIEDO ===
-                if (text.match(/terror|miedo|susto|phasmophobia|horror|asustar|fantasma/)) {
-                    return 'Si buscas adrenalina, Phasmophobia es increíble. Investigas casas embrujadas con tus amigos y los fantasmas realmente te persiguen. Solo para mayores de 14 años y gente sin problemas del corazón. ¿Te animas?';
-                }
-
-                // === CUMPLEAÑOS / FIESTAS ===
-                if (text.match(/cumple|fiesta|party|celebr|niño|niña|hijo|hija|pequeño|chico|festej/)) {
-                    return pick([
-                        'Los cumpleaños aquí son memorables. Tenemos:\n\n• Pack Estándar: $18,000/niño (1hr + sala privada)\n• Pack VIP: $28,000/niño (1.5hrs + pizza + regalo)\n\n¿Para qué edad sería y cuántos invitados?',
-                        'Hacemos muchos cumples y todos salen felices. ¿Es para niño o niña? ¿Y más o menos cuántos invitados serían?'
-                    ]);
-                }
-
-                // === UBICACIÓN ===
-                if (text.match(/donde|dónde|ubicacion|ubicación|direccion|dirección|llegar|llego|queda|encuentran|mapa|localiz/)) {
-                    return 'Estamos en Av. Corrientes 1234, Buenos Aires. Muy fácil de llegar: cerca del subte Línea B y hay estacionamiento a media cuadra. ¿Quieres que te mande la ubicación exacta por WhatsApp?';
-                }
-
-                // === EDAD MÍNIMA ===
-                if (text.match(/edad|años|menor|pequeño|chiquito|niños pueden|desde que edad|limite de edad/)) {
-                    return 'Lo recomendamos desde los 8 años para que el casco ajuste bien. Para juegos de terror, mínimo 14 años. Los cascos se ajustan a diferentes tamaños de cabeza. ¿Para quién sería?';
-                }
-
-                // === MAREO ===
-                if (text.match(/mareo|mare[ao]|vomit|náusea|nausea|enferm|malestar/)) {
-                    return 'Tranquilo, en nuestra Arena Free Roam casi nadie se marea porque caminas físicamente, no solo con el control. Además empezamos con juegos suaves si es tu primera vez.';
-                }
-
-                // === ANTEOJOS ===
-                if (text.match(/anteojos|lentes|gafas|vista|miope|astigmat|óptic/)) {
-                    return 'Sí, puedes usar tus lentes normales sin problema. Los cascos Quest 3 tienen espaciadores especiales para eso. Muchos clientes los usan.';
-                }
-
-                // === PRIMERA VEZ ===
-                if (text.match(/primera vez|nunca|probado|nuevo|principiante|experiencia|no sé|no se|nervios/)) {
-                    return 'No te preocupes, el 80% de nuestros clientes nunca han jugado VR antes. Nuestros instructores te explican todo en 5 minutos. Es súper intuitivo, ya verás.';
-                }
-
-                // === TECNOLOGÍA ===
-                if (text.match(/tecnolog|equipo|casco|quest|cable|wireless|calidad|resoluci|pantalla|gráfic/)) {
-                    return 'Usamos Meta Quest 3, lo más nuevo del mercado. Son totalmente inalámbricos, con resolución 4K+. La Arena tiene 200m² para moverte libremente. ¡Es otra cosa!';
-                }
-
-                // === GRUPOS ===
-                if (text.match(/grupo|amigos|varios|cuantos pueden|cuántos pueden|juntos|todos|equipo/)) {
-                    return 'En la Arena pueden jugar hasta 10 personas al mismo tiempo. Si son más, organizamos turnos. ¿Cuántos serían?';
-                }
-
-                // === CORPORATIVO ===
-                if (text.match(/empresa|corporativo|team building|trabajo|oficina|empleados|compañeros/)) {
-                    return 'Hacemos muchos eventos corporativos. Es genial para team building: torneos, competencias, y podemos incluir catering. ¿Te paso con nuestro coordinador de eventos?';
-                }
-
-                // === GRACIAS ===
-                if (text.match(/gracias|thank|te lo agradezco|muy amable|excelente|genial|perfecto|buenísimo|buenisimo|chevere|chévere|cool|increíble|increible/)) {
-                    return pick([
-                        '¡Con mucho gusto! ¿Hay algo más en lo que te pueda ayudar?',
-                        '¡A ti por escribirme! Si tienes más dudas, aquí estoy. ¡Espero verte pronto!',
-                        '¡De nada! Fue un placer ayudarte. ¡Que tengas excelente día!'
-                    ]);
-                }
-
-                // === DESPEDIDA ===
-                if (text.match(/chao|adiós|adios|bye|hasta luego|nos vemos|me voy|ya me voy|hasta pronto|cuídate|cuidate/)) {
-                    return pick([
-                        '¡Hasta luego! Fue un gusto atenderte. Cuando quieras, aquí estaré. ¡Cuídate!',
-                        '¡Nos vemos! Espero verte pronto por Virtual Life. ¡Que te vaya súper!',
-                        '¡Chao! Gracias por escribir. ¡Que tengas un excelente día!'
-                    ]);
-                }
-
-                // === QUEJAS / PROBLEMAS ===
-                if (text.match(/problema|queja|mal servicio|molest|enojado|no me gust|reclamo/)) {
-                    return 'Lamento mucho escuchar eso. Cuéntame qué pasó y veré cómo te puedo ayudar. Tu satisfacción es muy importante para nosotros.';
-                }
-
-                // === MENSAJES MUY CORTOS ===
-                if (words.length === 1) {
-                    const singleWord = words[0];
-                    if (singleWord.match(/^(vr|realidad|virtual)$/)) {
-                        return '¡Sí, somos un centro de realidad virtual! ¿Qué te gustaría saber? ¿Precios, juegos, o quieres reservar?';
-                    }
-                    if (singleWord.match(/^(info|información|informacion)$/)) {
-                        return 'Claro, ¿qué información necesitas? Puedo contarte sobre precios, horarios, juegos, cumpleaños, o cómo llegar.';
-                    }
-                    return pick([
-                        '¿Me puedes dar un poco más de detalle? Así te ayudo mejor.',
-                        '¿Qué te gustaría saber exactamente?',
-                        'Cuéntame más, ¿sobre qué necesitas información?'
-                    ]);
-                }
-
-                // === DEFAULT - Conversación natural ===
-                return pick([
-                    'Mmm, no estoy segura de entender bien. ¿Me lo explicas de otra forma? Puedo ayudarte con precios, horarios, juegos, cumpleaños o reservaciones.',
-                    'No capté del todo. Cuéntame más específicamente qué necesitas saber y con gusto te ayudo.',
-                    'Disculpa, no entendí bien. ¿Quieres saber sobre nuestros servicios, precios, o te ayudo a reservar?',
-                    'Perdón, no te entendí. ¿Me puedes explicar qué estás buscando? Estoy para ayudarte.'
-                ]);
-            };
-
-            const handleSend = async () => {
-                if (!inputValue.trim() || chatState !== 'connected') return;
-
-                const userMessage = { type: 'user', text: inputValue };
+                const userMessage = { type: 'user', text: msgText };
                 const updatedMessages = [...messages, userMessage];
                 setMessages(updatedMessages);
-                const currentInput = inputValue;
                 setInputValue('');
                 setIsTyping(true);
 
-                try {
-                    // Llamar a la API del chatbot con IA
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            message: currentInput,
-                            history: updatedMessages
-                        })
-                    });
+                // Función para intentar enviar con reintento
+                const attemptSend = async (attempt = 1) => {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-                    const data = await response.json();
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: msgText,
+                                history: updatedMessages.slice(-15)
+                            }),
+                            signal: controller.signal
+                        });
 
-                    // Detectar si la respuesta menciona WhatsApp para redirigir
-                    const botText = data.response;
-                    if (botText.toLowerCase().includes('whatsapp') && currentInput.toLowerCase().match(/^(si|sí|ok|dale|claro|va)$/)) {
-                        setTimeout(() => {
-                            openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
-                        }, 1500);
+                        clearTimeout(timeoutId);
+
+                        if (response.status === 429) {
+                            return { text: 'Estoy recibiendo muchos mensajes en este momento. Esperá un momentito y volvé a intentar. 😊', source: 'rate-limit' };
+                        }
+
+                        if (!response.ok) {
+                            if (attempt < 2) {
+                                await new Promise(r => setTimeout(r, 1500));
+                                return attemptSend(attempt + 1);
+                            }
+                            throw new Error('Error del servidor: ' + response.status);
+                        }
+
+                        const data = await response.json();
+                        return { text: data.response, source: data.source };
+
+                    } catch (error) {
+                        if (error.name === 'AbortError') {
+                            if (attempt < 2) {
+                                return attemptSend(attempt + 1);
+                            }
+                            return { text: 'Disculpa, la respuesta está tardando más de lo normal. Intentá de nuevo en un momento o escríbenos al WhatsApp +505 7779-1433.', source: 'timeout' };
+                        }
+                        if (attempt < 2) {
+                            await new Promise(r => setTimeout(r, 1000));
+                            return attemptSend(attempt + 1);
+                        }
+                        return { text: 'Disculpa, estoy teniendo un problema de conexión. Para atenderte al instante, escríbenos por WhatsApp al +505 7779-1433. ¡Gracias por tu paciencia!', source: 'error' };
                     }
+                };
 
-                    setMessages(prev => [...prev, { type: 'bot', text: botText }]);
-                } catch (error) {
-                    console.error('Error en chat:', error);
-                    // Fallback a respuesta local si falla la API
-                    const fallbackResponse = getResponse(currentInput, updatedMessages);
-                    setMessages(prev => [...prev, { type: 'bot', text: fallbackResponse }]);
+                const result = await attemptSend();
+
+                // Si la IA menciona WhatsApp y el usuario confirmó, abrir enlace
+                if (result.text.toLowerCase().includes('whatsapp') && msgText.toLowerCase().match(/^(si|sí|ok|dale|claro|va|vamos|listo)$/)) {
+                    setTimeout(() => {
+                        openWhatsApp('Hola! Me atiende María en el chat. Quiero reservar una sesión de VR');
+                    }, 1500);
                 }
 
+                setMessages(prev => [...prev, { type: 'bot', text: result.text, source: result.source }]);
                 setIsTyping(false);
+                setRetryCount(0);
+
+                // Re-enfocar input
+                setTimeout(() => inputRef.current?.focus(), 100);
             };
+
+            // Mantener compatibilidad con handleSend para el botón
+            const handleSend = () => sendMessage();
 
             const handleKeyPress = (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -496,8 +333,21 @@
                 }
             };
 
+            // Enviar opción rápida directamente
+            const handleQuickOption = (opt) => {
+                if (isTyping) return;
+                sendMessage(opt);
+            };
+
             // Opciones rápidas
             const quickOptions = ['Precios', 'Horarios', 'Juegos', 'Reservar'];
+
+            // Indicador de fuente de IA
+            const getSourceBadge = (source) => {
+                if (!source || source === 'local' || source === 'error') return null;
+                const labels = { gemini: '✨ IA', grok: '✨ IA', 'rate-limit': '⏳', timeout: '⏳' };
+                return labels[source] || null;
+            };
 
             return (
                 <>
@@ -536,7 +386,7 @@
                                     <h3 className="text-white font-bold">{agent.name}</h3>
                                     <p className="text-white/70 text-xs">{agent.role} • Virtual Life</p>
                                 </div>
-                                <button onClick={handleClose} className="text-white/70 hover:text-white transition-colors">
+                                <button onClick={handleClose} className="text-white/70 hover:text-white transition-colors" aria-label="Cerrar chat">
                                     <X size={20} />
                                 </button>
                             </div>
@@ -576,8 +426,13 @@
                                                         onError={(e) => { e.target.style.display = 'none'; }}
                                                     />
                                                 )}
-                                                <div className={`max-w-[75%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.type === 'user' ? 'bg-cyan-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
-                                                    {msg.text}
+                                                <div className="flex flex-col gap-0.5 max-w-[75%]">
+                                                    <div className={`p-3 rounded-2xl text-sm whitespace-pre-wrap ${msg.type === 'user' ? 'bg-cyan-600 text-white rounded-br-sm' : 'bg-white/10 text-gray-200 rounded-bl-sm'}`}>
+                                                        {msg.text}
+                                                    </div>
+                                                    {msg.type === 'bot' && getSourceBadge(msg.source) && (
+                                                        <span className="text-[10px] text-gray-600 ml-1">{getSourceBadge(msg.source)}</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
@@ -607,14 +462,9 @@
                                         {quickOptions.map((opt, idx) => (
                                             <button
                                                 key={idx}
-                                                onClick={() => {
-                                                    setInputValue(opt);
-                                                    setTimeout(() => {
-                                                        const btn = document.getElementById('chat-send-btn');
-                                                        if (btn) btn.click();
-                                                    }, 100);
-                                                }}
-                                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all whitespace-nowrap"
+                                                onClick={() => handleQuickOption(opt)}
+                                                disabled={isTyping}
+                                                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                                             >
                                                 {opt}
                                             </button>
@@ -625,18 +475,21 @@
                                     <div className="p-4 border-t border-white/10 bg-[#111]">
                                         <div className="flex gap-2">
                                             <input
+                                                ref={inputRef}
                                                 type="text"
                                                 value={inputValue}
                                                 onChange={(e) => setInputValue(e.target.value)}
-                                                onKeyPress={handleKeyPress}
-                                                placeholder="Escribe tu mensaje..."
-                                                className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-500 outline-none transition-colors"
+                                                onKeyDown={handleKeyPress}
+                                                placeholder={isTyping ? 'María está respondiendo...' : 'Escribe tu mensaje...'}
+                                                disabled={isTyping}
+                                                className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:border-cyan-500 outline-none transition-colors disabled:opacity-50"
                                             />
                                             <button
                                                 id="chat-send-btn"
                                                 onClick={handleSend}
-                                                disabled={!inputValue.trim()}
+                                                disabled={!inputValue.trim() || isTyping}
                                                 className="w-12 h-12 bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
+                                                aria-label="Enviar mensaje"
                                             >
                                                 <Send size={20} className="text-black" />
                                             </button>
@@ -789,6 +642,7 @@
             const [activeCategory, setActiveCategory] = useState('all');
             const [activeTab, setActiveTab] = useState('arena');
             const [openFaq, setOpenFaq] = useState(null);
+            const [selectedGuests, setSelectedGuests] = useState('');
 
             useEffect(() => {
                 const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -1127,244 +981,190 @@
                         </div>
                     </section>
 
-                    {/* --- PRECIOS --- */}
-                    <section id="precios" className="py-24 px-6 bg-[#0a0a0a] relative">
-                        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-cyan-900/10 blur-[100px] rounded-full pointer-events-none"></div>
-
-                        <div className="max-w-4xl mx-auto">
-                            <div className="text-center mb-12">
-                                <h2 className="text-4xl font-black italic text-white mb-6">TARIFAS</h2>
-
-                                <div className="inline-flex bg-white/5 p-1 rounded-full border border-white/10" role="tablist">
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('arena')}
-                                        className={`px-8 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'arena' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                                        role="tab"
-                                        aria-selected={activeTab === 'arena'}
-                                    >
-                                        VR ARENA
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('station')}
-                                        className={`px-8 py-2 rounded-full text-sm font-bold transition-all ${activeTab === 'station' ? 'bg-cyan-500 text-black shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                                        role="tab"
-                                        aria-selected={activeTab === 'station'}
-                                    >
-                                        VR STATION
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-3 gap-6">
-                                <div className="bg-[#111] border border-white/10 rounded-2xl p-8 hover:border-cyan-500/50 transition-all flex flex-col">
-                                    <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">RÁPIDO</h3>
-                                    <div className="text-3xl font-black text-white mb-4">30 MIN</div>
-                                    <ul className="space-y-4 mb-8 flex-1">
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Ideal para probar</li>
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Acceso a todos los juegos</li>
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Instructor incluido</li>
-                                    </ul>
-                                    <div className="text-2xl font-bold text-white mb-4">$15.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
-                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete RÁPIDO de 30 minutos')} className="w-full py-3 border border-white/20 rounded-lg text-sm font-bold hover:bg-white hover:text-black transition-all">RESERVAR</button>
-                                </div>
-
-                                <div className="bg-[#1a1a1a] border border-cyan-500 rounded-2xl p-8 relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(6,182,212,0.15)] flex flex-col">
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-500 text-black text-xs font-black px-4 py-1 rounded-full uppercase">Más Vendido</div>
-                                    <h3 className="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-2">ESTÁNDAR</h3>
-                                    <div className="text-4xl font-black text-white mb-4">60 MIN</div>
-                                    <ul className="space-y-4 mb-8 flex-1">
-                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Tiempo perfecto de inmersión</li>
-                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Cambia de juego ilimitadamente</li>
-                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Multijugador habilitado</li>
-                                    </ul>
-                                    <div className="text-3xl font-bold text-white mb-4">$25.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
-                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete ESTÁNDAR de 60 minutos')} className="w-full py-3 bg-cyan-500 rounded-lg text-black text-sm font-black hover:bg-cyan-400 transition-all shadow-lg hover:shadow-cyan-500/25">RESERVAR AHORA</button>
-                                </div>
-
-                                <div className="bg-[#111] border border-white/10 rounded-2xl p-8 hover:border-cyan-500/50 transition-all flex flex-col">
-                                    <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-2">EXTENDIDO</h3>
-                                    <div className="text-3xl font-black text-white mb-4">90 MIN</div>
-                                    <ul className="space-y-4 mb-8 flex-1">
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Para gamers serios</li>
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Bebida de cortesía</li>
-                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-1.5 h-1.5 bg-cyan-500 rounded-full"></div>Acceso zona VIP lounge</li>
-                                    </ul>
-                                    <div className="text-2xl font-bold text-white mb-4">$35.000 <span className="text-xs font-normal text-gray-500">/jugador</span></div>
-                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete EXTENDIDO de 90 minutos')} className="w-full py-3 border border-white/20 rounded-lg text-sm font-bold hover:bg-white hover:text-black transition-all">RESERVAR</button>
-                                </div>
-                            </div>
-
-                            <div className="mt-12 bg-white/5 border border-white/10 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-purple-900/30 rounded-xl text-purple-400">
-                                        <Calendar size={32} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-lg text-white">Eventos & Cumpleaños</h4>
-                                        <p className="text-sm text-gray-400">¿Tienes un grupo de +10 personas? Tenemos precios especiales.</p>
-                                    </div>
-                                </div>
-                                <button type="button" onClick={() => scrollToSection('cumpleanos')} className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors whitespace-nowrap">
-                                    Ver Paquetes Grupales
-                                </button>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* --- CUMPLEAÑOS --- */}
-                    <section id="cumpleanos" className="py-24 px-6 bg-[#0a0a0a] relative overflow-hidden border-t border-white/5">
-                        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                            <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px]"></div>
-                            <div className="absolute bottom-[10%] left-[-10%] w-[400px] h-[400px] bg-cyan-600/10 rounded-full blur-[100px]"></div>
-                        </div>
+                    {/* --- PAQUETES PARTICULARES (B2C) --- */}
+                    <section id="precios" className="py-24 px-6 bg-[#0a0a0a] relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-cyan-900/20 blur-[120px] rounded-full pointer-events-none"></div>
+                        <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-purple-900/20 blur-[120px] rounded-full pointer-events-none"></div>
 
                         <div className="max-w-7xl mx-auto relative z-10">
                             <div className="text-center mb-16">
-                                <h2 className="text-4xl md:text-6xl font-black italic mb-4">
-                                    CUMPLEAÑOS <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">LEVEL UP</span>
+                                <h2 className="text-4xl md:text-5xl font-black italic text-white mb-4">
+                                    PAQUETES <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">PARTICULARES</span>
                                 </h2>
                                 <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-                                    La fiesta que todos recordarán. Olvídate de los peloteros. Trae a la squad a combatir zombies o bailar en VR.
+                                    Lleva la realidad virtual a la puerta de tu casa. Cumpleaños y reuniones inolvidables.
                                 </p>
                             </div>
 
-                            <div className="grid md:grid-cols-2 gap-12 items-start">
-                                {/* Left: Info & Packages */}
-                                <div className="space-y-8">
-                                    <div className="bg-[#111] border border-white/10 p-8 rounded-3xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
-                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                            <Gift size={100} />
-                                        </div>
-                                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                                            <Star className="text-yellow-400 fill-yellow-400" /> PACK STANDARD
-                                        </h3>
-                                        <ul className="space-y-3 text-gray-300 mb-6">
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>1 Hora de Juego VR (Arena o Estación)</li>
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>Sala Privada para Merienda (30 min)</li>
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full mt-2"></div>Invitaciones Digitales Personalizadas</li>
-                                        </ul>
-                                        <div className="text-xl font-bold text-purple-400">Desde $18.000 <span className="text-sm text-gray-500">/niño</span></div>
-                                    </div>
-
-                                    <div className="bg-[#111] border border-purple-500/30 p-8 rounded-3xl relative overflow-hidden shadow-[0_0_30px_rgba(168,85,247,0.15)]">
-                                        <div className="absolute top-4 right-4 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">Más Elegido</div>
-                                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                                            <Star className="text-yellow-400 fill-yellow-400" />
-                                            <Star className="text-yellow-400 fill-yellow-400" />
-                                            PACK EPIC VIP
-                                        </h3>
-                                        <ul className="space-y-3 text-gray-300 mb-6">
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>1.5 Horas de Juego Total</li>
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Torneo Privado con Premios</li>
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Pizza Party + Bebidas Incluidas</li>
-                                            <li className="flex gap-3"><div className="w-1.5 h-1.5 bg-cyan-500 rounded-full mt-2"></div>Regalo VR para el Cumpleañero</li>
-                                        </ul>
-                                        <div className="text-xl font-bold text-cyan-400">Desde $28.000 <span className="text-sm text-gray-500">/niño</span></div>
-                                    </div>
+                            <div className="grid md:grid-cols-4 gap-6 mb-20">
+                                {/* Paquete 1 */}
+                                <div className="group bg-[#111] border border-white/10 rounded-3xl p-8 hover:border-cyan-500 relative transition-all duration-500 hover:-translate-y-4 hover:shadow-[0_0_40px_rgba(6,182,212,0.3)] flex flex-col">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/0 to-cyan-500/5 rounded-3xl group-hover:from-cyan-500/10 transition-all duration-500"></div>
+                                    <h3 className="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-2 relative z-10">Básico</h3>
+                                    <div className="text-2xl font-black text-white mb-4 relative z-10">QUICK DIVE</div>
+                                    <p className="text-sm text-gray-400 mb-6 relative z-10">Ideal para reuniones íntimas o un primer acercamiento a la VR.</p>
+                                    <ul className="space-y-4 mb-8 flex-1 relative z-10">
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>1 Visor VR</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>1 Hora de Inmersión</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>1 Operador Especializado</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6 relative z-10"><span className="text-sm text-gray-500 font-normal">Desde</span> $20.00</div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete QUICK DIVE')} className="relative z-10 w-full py-3 border border-cyan-500/50 rounded-xl text-sm font-bold text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all">RESERVAR</button>
                                 </div>
 
-                                {/* Right: Detailed Form */}
-                                <div className="bg-[#161616] border border-white/10 rounded-[2rem] p-8 md:p-10">
-                                    <h3 className="text-2xl font-bold text-white mb-6">Arma tu Fiesta</h3>
-                                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()} noValidate>
-                                        <div className="grid grid-cols-2 gap-5">
-                                            <div className="space-y-2">
-                                                <label htmlFor="parent-name" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tu Nombre</label>
-                                                <input type="text" id="parent-name" name="parentName" autoComplete="name" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Padre/Madre/Tutor" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="birthday-child" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cumpleañero/a</label>
-                                                <input type="text" id="birthday-child" name="childName" autoComplete="off" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="Nombre del agasajado" />
-                                            </div>
-                                        </div>
+                                {/* Paquete 2 */}
+                                <div className="group bg-[#111] border border-white/10 rounded-3xl p-8 hover:border-purple-500 relative transition-all duration-500 hover:-translate-y-4 hover:shadow-[0_0_40px_rgba(168,85,247,0.3)] flex flex-col">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/5 rounded-3xl group-hover:from-purple-500/10 transition-all duration-500"></div>
+                                    <h3 className="text-purple-400 font-bold uppercase tracking-widest text-xs mb-2 relative z-10">Equilibrio</h3>
+                                    <div className="text-2xl font-black text-white mb-4 relative z-10">DOBLE DIVERSIÓN</div>
+                                    <p className="text-sm text-gray-400 mb-6 relative z-10">El equilibrio perfecto. Menos espera y más competencia amistosa.</p>
+                                    <ul className="space-y-4 mb-8 flex-1 relative z-10">
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>2 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>2 Horas Continuas</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>1 Operador</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6 relative z-10"><span className="text-sm text-gray-500 font-normal">Desde</span> $60.00</div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete DOBLE DIVERSIÓN')} className="relative z-10 w-full py-3 border border-purple-500/50 rounded-xl text-sm font-bold text-purple-400 hover:bg-purple-500 hover:text-white transition-all">RESERVAR</button>
+                                </div>
 
-                                        <div className="grid grid-cols-2 gap-5">
-                                            <div className="space-y-2">
-                                                <label htmlFor="phone-number" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Teléfono / WhatsApp</label>
-                                                <input type="tel" id="phone-number" name="phone" autoComplete="tel" required pattern="[0-9+\-\s]+" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors" placeholder="+505 7779-1433..." />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label htmlFor="event-date" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Tentativa</label>
-                                                <input type="date" id="event-date" name="eventDate" required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-gray-400 focus:text-white focus:border-purple-500 outline-none transition-colors" />
-                                            </div>
-                                        </div>
+                                {/* Paquete 3 */}
+                                <div className="group bg-[#111] border border-white/10 rounded-3xl p-8 hover:border-pink-500 relative transition-all duration-500 hover:-translate-y-4 hover:shadow-[0_0_40px_rgba(236,72,153,0.3)] flex flex-col">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 to-pink-500/5 rounded-3xl group-hover:from-pink-500/10 transition-all duration-500"></div>
+                                    <h3 className="text-pink-400 font-bold uppercase tracking-widest text-xs mb-2 relative z-10">Fiesta</h3>
+                                    <div className="text-2xl font-black text-white mb-4 relative z-10">PARTY GAMER</div>
+                                    <p className="text-sm text-gray-400 mb-6 relative z-10">El paquete estrella para cumpleaños. Suficiente tiempo y equipo.</p>
+                                    <ul className="space-y-4 mb-8 flex-1 relative z-10">
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-pink-500 rounded-full shadow-[0_0_10px_rgba(236,72,153,0.8)]"></div>2 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-pink-500 rounded-full shadow-[0_0_10px_rgba(236,72,153,0.8)]"></div>3 Horas de Fiesta</li>
+                                        <li className="flex gap-3 text-sm text-gray-300"><div className="mt-1 w-2 h-2 bg-pink-500 rounded-full shadow-[0_0_10px_rgba(236,72,153,0.8)]"></div>1 Operador</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6 relative z-10"><span className="text-sm text-gray-500 font-normal">Desde</span> $80.00</div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete PARTY GAMER')} className="relative z-10 w-full py-3 border border-pink-500/50 rounded-xl text-sm font-bold text-pink-400 hover:bg-pink-500 hover:text-white transition-all">RESERVAR</button>
+                                </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider" id="guests-label">Cantidad Aprox. de Invitados</label>
-                                            <div className="grid grid-cols-3 gap-3" role="group" aria-labelledby="guests-label">
-                                                {['10-15', '16-25', '+25'].map(opt => (
-                                                    <button type="button" key={opt} className="bg-[#0a0a0a] border border-white/10 hover:border-purple-500 text-gray-300 py-3 rounded-lg text-sm font-bold transition-all focus:bg-purple-500/20 focus:border-purple-500 focus:text-white">
-                                                        {opt}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label htmlFor="interest-type" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Interés Principal</label>
-                                            <select id="interest-type" name="interestType" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors appearance-none cursor-pointer">
-                                                <option value="standard">Pack Standard (Solo Juego + Sala)</option>
-                                                <option value="vip">Pack Epic VIP (Comida + Torneo)</option>
-                                                <option value="info">Solo averiguar precios</option>
-                                            </select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label htmlFor="extra-message" className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mensaje Extra</label>
-                                            <textarea id="extra-message" name="message" className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none transition-colors h-24 resize-none" placeholder="¿Alguna duda específica?" maxLength={500}></textarea>
-                                        </div>
-
-                                        <button type="submit" className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-black text-white text-lg hover:shadow-[0_0_30px_rgba(219,39,119,0.4)] transition-all transform hover:scale-[1.02]">
-                                            ENVIAR CONSULTA
-                                        </button>
-                                        <p className="text-center text-xs text-gray-600 mt-2">Te contactaremos en menos de 24hs para confirmar disponibilidad.</p>
-                                    </form>
+                                {/* Paquete 4 */}
+                                <div className="group bg-[#161616] border-2 border-cyan-400 rounded-3xl p-8 relative transition-all duration-500 md:-translate-y-6 hover:-translate-y-8 shadow-[0_0_30px_rgba(6,182,212,0.2)] hover:shadow-[0_0_50px_rgba(6,182,212,0.4)] flex flex-col">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-cyan-400 text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(6,182,212,0.5)]">✨ El Más Popular ✨</div>
+                                    <h3 className="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-2 relative z-10">VIP</h3>
+                                    <div className="text-3xl font-black text-white mb-4 relative z-10">INMERSIÓN TOTAL</div>
+                                    <p className="text-sm text-gray-300 mb-6 relative z-10">La experiencia VIP definitiva. ¡Todos ven la acción en tiempo real!</p>
+                                    <ul className="space-y-4 mb-8 flex-1 relative z-10">
+                                        <li className="flex gap-3 text-sm text-white font-semibold"><div className="mt-1 w-2.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,1)]"></div>3 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-white font-semibold"><div className="mt-1 w-2.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,1)]"></div>Monitor TV (Transmisión en vivo)</li>
+                                        <li className="flex gap-3 text-sm text-white font-semibold"><div className="mt-1 w-2.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,1)]"></div>4 Horas de Juego</li>
+                                        <li className="flex gap-3 text-sm text-white font-semibold"><div className="mt-1 w-2.5 h-2.5 bg-cyan-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,1)]"></div>1 Operador Especializado</li>
+                                    </ul>
+                                    <div className="text-4xl font-black text-white mb-6 relative z-10"><span className="text-sm text-cyan-400 font-normal">Desde</span> $120.00</div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Quiero reservar el paquete INMERSIÓN TOTAL')} className="relative z-10 w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl text-black font-black uppercase tracking-wider hover:from-cyan-400 hover:to-blue-400 transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)]">RESERVAR AHORA</button>
                                 </div>
                             </div>
                         </div>
                     </section>
 
-                    {/* --- EVENTOS CORPORATIVOS --- */}
-                    <section id="eventos" className="py-24 px-6 bg-[#000] border-t border-white/10">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
-                            <div className="w-full md:w-1/2">
-                                <h2 className="text-4xl md:text-5xl font-black italic mb-6">EVENTOS <br /><span className="text-purple-500">FUERA DE ESTE MUNDO</span></h2>
-                                <p className="text-gray-400 text-lg mb-8 leading-relaxed">
-                                    Olvídate del bowling o las cenas aburridas. Lleva a tu equipo o amigos a otra dimensión. Organizamos torneos, catering y experiencias personalizadas para empresas y fiestas privadas.
+                    {/* --- PAQUETES EMPRESARIALES (B2B) --- */}
+                    <section id="eventos" className="py-24 px-6 bg-[#000] border-t border-white/5 relative">
+                        <div className="absolute top-0 right-[-10%] w-[500px] h-[500px] bg-slate-400/5 rounded-full blur-[120px] pointer-events-none"></div>
+                        <div className="absolute bottom-[10%] left-[-10%] w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+                        <div className="max-w-7xl mx-auto relative z-10">
+                            <div className="text-center mb-16">
+                                <h2 className="text-4xl md:text-5xl font-black italic text-white mb-4">
+                                    PAQUETES <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-gray-500">EMPRESARIALES</span>
+                                </h2>
+                                <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+                                    Innovación que hace destacar a tu marca. 🚀 Ferias, Team Building y Branding.
                                 </p>
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Users size={20} /></div>
-                                        <span className="font-bold text-gray-200">Capacidad hasta 40 personas</span>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><Star size={20} /></div>
-                                        <span className="font-bold text-gray-200">Torneos Privados con Trofeos</span>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400"><CreditCard size={20} /></div>
-                                        <span className="font-bold text-gray-200">Factura A para Empresas</span>
-                                    </div>
-                                </div>
-                                <button type="button" onClick={() => openWhatsAppEventos()} className="mt-10 px-8 py-3 bg-white text-black font-bold uppercase hover:bg-gray-200 transition-colors">
-                                    Solicitar Presupuesto
-                                </button>
                             </div>
-                            <div className="w-full md:w-1/2 relative">
-                                <div className="absolute -inset-4 bg-purple-500/20 rounded-[3rem] blur-xl"></div>
-                                <img
-                                    src="https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=2070&auto=format&fit=crop"
-                                    alt="Grupo de personas disfrutando evento corporativo de realidad virtual"
-                                    className="relative rounded-[3rem] border-2 border-white/10 w-full shadow-2xl rotate-3 hover:rotate-0 transition-all duration-500"
-                                    loading="lazy"
-                                />
+
+                            <div className="grid md:grid-cols-3 gap-8">
+                                {/* Corp 1 */}
+                                <div className="group bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-gray-700/50 rounded-3xl p-8 hover:border-gray-400 relative transition-all duration-500 hover:-translate-y-4 shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                                    <h3 className="text-gray-200 font-bold uppercase tracking-widest text-xs mb-2">Impacto Visual</h3>
+                                    <h4 className="text-2xl font-black text-white mb-4">ACTIVACIÓN DE MARCA</h4>
+                                    <p className="text-sm text-gray-400 mb-6">Atrae todas las miradas a tu stand o lanzamiento con tecnología de punta.</p>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>2 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>Chromecast (Transmisión a pantallas)</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>2 Horas de Activación</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6"><span className="text-sm text-gray-500 font-normal">Desde</span> $150.00 <span className="text-xs font-normal text-gray-500">+IVA</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Solicito información sobre el paquete ACTIVACIÓN DE MARCA')} className="w-full py-3 bg-white/10 border border-white/20 hover:bg-white text-white hover:text-black rounded-lg text-sm font-bold transition-all uppercase tracking-wider">COTIZAR</button>
+                                </div>
+
+                                {/* Corp 2 */}
+                                <div className="group bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-gray-700/50 rounded-3xl p-8 hover:border-white relative transition-all duration-500 hover:-translate-y-4 shadow-xl hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+                                    <h3 className="text-gray-200 font-bold uppercase tracking-widest text-xs mb-2">Escala masiva</h3>
+                                    <h4 className="text-2xl font-black text-white mb-4">FERIA CORP</h4>
+                                    <p className="text-sm text-gray-400 mb-6">Máximo impacto para corporativos gigantes. Mayor capacidad de atención simultánea.</p>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-white rounded-sm"></div>3 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-white rounded-sm"></div>2 Operadores Expertos en RRPP</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-white rounded-sm"></div>3 Horas Extraordinarias</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6"><span className="text-sm text-gray-500 font-normal">Desde</span> $280.00 <span className="text-xs font-normal text-gray-500">+IVA</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Solicito información sobre el paquete FERIA CORP')} className="w-full py-3 bg-white text-black hover:bg-gray-300 rounded-lg text-sm font-bold transition-all uppercase tracking-wider">COTIZAR</button>
+                                </div>
+
+                                {/* Corp 3 */}
+                                <div className="group bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-gray-700/50 rounded-3xl p-8 hover:border-gray-400 relative transition-all duration-500 hover:-translate-y-4 shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                                    <h3 className="text-gray-200 font-bold uppercase tracking-widest text-xs mb-2">Integración</h3>
+                                    <h4 className="text-2xl font-black text-white mb-4">TEAM BUILDING DEL FUTURO</h4>
+                                    <p className="text-sm text-gray-400 mb-6">Fomenta la colaboración en tu equipo con dinámicas únicas en entornos virtuales.</p>
+                                    <ul className="space-y-4 mb-8 flex-1">
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>4 Visores VR</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>Guía experto en dinámicas</li>
+                                        <li className="flex gap-3 text-sm text-white"><div className="mt-1 w-2 h-2 bg-gray-400 rounded-sm"></div>4 Horas de Integración Total</li>
+                                    </ul>
+                                    <div className="text-3xl font-bold text-white mb-6"><span className="text-sm text-gray-500 font-normal">Desde</span> $350.00 <span className="text-xs font-normal text-gray-500">+IVA</span></div>
+                                    <button type="button" onClick={() => openWhatsApp('Hola! Solicito información sobre el TEAM BUILDING DEL FUTURO')} className="w-full py-3 bg-white/10 border border-white/20 hover:bg-white text-white hover:text-black rounded-lg text-sm font-bold transition-all uppercase tracking-wider">COTIZAR</button>
+                                </div>
                             </div>
                         </div>
                     </section>
 
-                    {/* --- REVIEWS --- */}
+                    {/* --- TÉRMINOS CLAROS --- */}
+                    <section className="py-20 px-6 bg-[#0a0a0a] border-t border-white/5">
+                        <div className="max-w-5xl mx-auto bg-[#111] p-8 md:p-12 rounded-3xl border border-white/10 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-[50px]"></div>
+                            
+                            <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+                                <HelpCircle className="text-cyan-500" /> TÉRMINOS CLAROS
+                            </h3>
+                            
+                            <div className="grid md:grid-cols-3 gap-8">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <MapPin className="text-cyan-400" size={24} />
+                                        <h4 className="font-bold text-white">Cobertura Total</h4>
+                                    </div>
+                                    <p className="text-sm text-gray-400 leading-relaxed">
+                                        Los precios "Desde" aplican a nuestra <strong>Zona Base</strong> (Ciudad El Doral, Los Brasiles, Valle Sandino). Llegamos a Managua, Ticuantepe, Masaya, Granada y otras zonas con un recargo logístico transparente según distancia.
+                                    </p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <Calendar className="text-cyan-400" size={24} />
+                                        <h4 className="font-bold text-white">Tarifas Dinámicas</h4>
+                                    </div>
+                                    <p className="text-sm text-gray-400 leading-relaxed">
+                                        Precios estándar de Lunes a Jueves. Fines de semana (<em>Prime Time</em>: Viernes 5:00M+, Sábados y Domingos) tienen un ajuste del <strong>15%</strong>. Eventos nocturnos (pasadas las 10:00 PM) tienen recargo del <strong>25%</strong>.
+                                    </p>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <Zap className="text-cyan-400" size={24} />
+                                        <h4 className="font-bold text-white">Todo Cubierto</h4>
+                                    </div>
+                                    <p className="text-sm text-gray-400 leading-relaxed">
+                                        Nuestros paquetes incluyen el traslado del equipo (zona base), toallas desinfectantes, protectores y soporte técnico in situ. ¡Tú solo te preocupas por disfrutar!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    
+{/* --- REVIEWS --- */}
                     <section className="py-20 px-6 bg-[#0a0a0a]">
                         <div className="max-w-7xl mx-auto">
                             <div className="text-center mb-16">
@@ -1438,7 +1238,7 @@
                                         </div>
                                     </div>
                                     <p className="text-gray-500 max-w-sm mb-6">
-                                        El futuro del entretenimiento está aquí. Ven y experimenta la tecnología de realidad virtual más inmersiva de Argentina.
+                                        El futuro del entretenimiento está aquí. Vení y experimentá la tecnología de realidad virtual más inmersiva de Nicaragua.
                                     </p>
                                     <div className="flex gap-4">
                                         <a href="https://instagram.com/virtuallife" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-cyan-500 hover:text-black transition-all" aria-label="Síguenos en Instagram"><Instagram size={18} /></a>
@@ -1452,7 +1252,7 @@
                                     <ul className="space-y-4 text-gray-400 text-sm">
                                         <li className="flex items-start gap-3">
                                             <MapPin size={18} className="text-cyan-500 shrink-0" />
-                                            Av. Corrientes 1234, Buenos Aires,<br />CABA, Argentina
+                                            Managua, Nicaragua
                                         </li>
                                         <li className="flex items-center gap-3">
                                             <Phone size={18} className="text-cyan-500 shrink-0" />

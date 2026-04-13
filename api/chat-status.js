@@ -1,18 +1,34 @@
-// Endpoint de diagnóstico del Chatbot
+// Endpoint de diagnóstico del Chatbot (Vercel Serverless)
+// Versión: 5.0.0
+
 module.exports = function handler(req, res) {
+    // Configuración de CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     const grokKey = process.env.GROK_API_KEY || '';
     const geminiKey = process.env.GEMINI_API_KEY || '';
 
-    const hasGrok = grokKey.length > 0;
-    const hasGemini = geminiKey.length > 0;
+    const hasGrok = grokKey.trim().length > 0;
+    const hasGemini = geminiKey.trim().length > 0;
 
     res.status(200).json({
         grokConfigured: hasGrok,
-        grokPreview: hasGrok ? grokKey.substring(0, 8) + '...' : 'No configurada',
         geminiConfigured: hasGemini,
-        geminiPreview: hasGemini ? geminiKey.substring(0, 8) + '...' : 'No configurada',
-        primaryEngine: hasGrok ? 'Grok (xAI) - grok-2-latest' : hasGemini ? 'Gemini - gemini-2.0-flash' : 'Respuestas locales',
-        fallbackEngine: hasGemini ? 'Gemini - gemini-2.0-flash' : 'Respuestas locales',
-        status: hasGrok ? '✅ Grok AI activo (motor principal)' : hasGemini ? '⚠️ Solo Gemini disponible' : '❌ Sin APIs configuradas'
+        primaryEngine: hasGemini ? 'Gemini 2.5 Pro GA' : hasGrok ? 'Grok (xAI) - grok-3-mini' : 'Respuestas locales',
+        fallbackEngine: hasGrok ? 'Grok (xAI) - grok-3-mini' : 'Respuestas locales',
+        status: hasGemini && hasGrok
+            ? '✅ Ambos motores activos (Gemini 2.5 Pro principal, Grok respaldo)'
+            : hasGemini
+                ? '⚠️ Solo Gemini 2.5 Pro disponible'
+                : hasGrok
+                    ? '⚠️ Solo Grok disponible'
+                    : '❌ Sin APIs configuradas',
+        version: '5.0.0'
     });
 };

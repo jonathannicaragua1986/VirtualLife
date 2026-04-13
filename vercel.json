@@ -4,7 +4,7 @@
     "functions": {
         "api/**/*.js": {
             "memory": 1024,
-            "maxDuration": 10
+            "maxDuration": 30
         }
     },
     "rewrites": [
@@ -15,6 +15,27 @@
         {
             "source": "/(.*)",
             "destination": "/index.html"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/api/(.*)",
+            "headers": [
+                { "key": "Cache-Control", "value": "no-store, max-age=0" }
+            ]
+        },
+        {
+            "source": "/(.*).html",
+            "headers": [
+                { "key": "Cache-Control", "value": "no-cache" }
+            ]
+        },
+        {
+            "source": "/(.*)",
+            "headers": [
+                { "key": "X-Content-Type-Options", "value": "nosniff" },
+                { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+            ]
         }
     ]
 }
