@@ -1,9 +1,8 @@
 {
     "buildCommand": "echo 'No build needed'",
-    "outputDirectory": ".",
+    "outputDirectory": "public",
     "functions": {
         "api/**/*.js": {
-            "memory": 1024,
             "maxDuration": 30
         }
     },
