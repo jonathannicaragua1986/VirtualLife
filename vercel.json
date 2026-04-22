@@ -7,6 +7,10 @@
     },
     "rewrites": [
         {
+            "source": "/api/webhook/whatsapp",
+            "destination": "/api/webhook/whatsapp"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/$1"
         },

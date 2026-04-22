@@ -115,6 +115,7 @@ app.use(
           "https://generativelanguage.googleapis.com", // Gemini API
           "https://api.x.ai", // Grok API
           "https://yuuozwzydyfkapxgtktq.supabase.co", // Supabase
+          "https://graph.facebook.com", // WhatsApp Cloud API
         ],
         frameSrc: ["'self'", "https://www.google.com"],
       },
@@ -455,10 +456,13 @@ app.post("/api/reservacion", async (req, res) => {
 });
 
 // ============================================
-// CHATBOT CON INTELIGENCIA ARTIFICIAL (GEMINI)
+// IMPORTAR SERVICIOS
 // ============================================
 
 const { processChatMessage } = require("./services/chatService");
+const { sendTextMessage, markAsRead, extractMessageData, verifyWebhook } = require("./services/whatsappService");
+const { findOrCreateLead, findOrCreateConversation, saveMessage, getConversationHistory } = require("./services/conversationService");
+const { auditConversation } = require("./services/auditService");
 
 // Endpoint del chatbot con IA
 app.post("/api/chat", async (req, res) => {
@@ -527,6 +531,118 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // ============================================
+// WEBHOOK DE WHATSAPP BUSINESS (META CLOUD API)
+// ============================================
+
+// Verificación del webhook (Meta envía un GET para validar)
+app.get("/api/webhook/whatsapp", (req, res) => {
+  log("info", "WhatsApp", "Solicitud de verificación de webhook recibida");
+  const result = verifyWebhook(req.query, process.env);
+  if (result.success) {
+    return res.status(200).send(result.challenge);
+  }
+  return res.status(403).send("Verificación fallida");
+});
+
+// Recepción de mensajes de WhatsApp (Meta envía un POST)
+app.post("/api/webhook/whatsapp", async (req, res) => {
+  // Responder inmediatamente a Meta (requisito: <5 segundos)
+  res.status(200).send("EVENT_RECEIVED");
+
+  try {
+    const messageData = extractMessageData(req.body);
+    if (!messageData) return; // No es un mensaje, ignorar
+
+    // Si no es un tipo soportado (imagen, audio, etc.), informar al usuario
+    if (!messageData.isSupported) {
+      log("info", "WhatsApp", `Mensaje tipo '${messageData.type}' de ${messageData.from} (no soportado)`);
+      await sendTextMessage(
+        messageData.from,
+        "¡Hola! Por el momento solo puedo leer mensajes de texto. ¿Me podrías escribir tu consulta? 😊",
+        process.env
+      );
+      return;
+    }
+
+    log("info", "WhatsApp", `📩 Mensaje de ${messageData.contactName} (${messageData.from}): "${messageData.text.substring(0, 80)}"`);
+
+    // Marcar como leído (doble check azul)
+    markAsRead(messageData.messageId, process.env).catch(() => {});
+
+    if (!supabase) {
+      log("warn", "WhatsApp", "Supabase no disponible. Respondiendo sin persistencia.");
+      const result = await processChatMessage(messageData.text, [], process.env);
+      await sendTextMessage(messageData.from, result.response, process.env);
+      return;
+    }
+
+    // 1. Buscar o crear lead
+    const lead = await findOrCreateLead(supabase, {
+      phone: messageData.from,
+      name: messageData.contactName,
+      channel: "whatsapp",
+    });
+
+    // 2. Buscar o crear conversación activa
+    const { conversation, isNew, closedPrevious } = await findOrCreateConversation(
+      supabase,
+      lead.id,
+      "whatsapp"
+    );
+
+    // 3. Si se cerró una conversación anterior, auditarla (en background)
+    if (closedPrevious) {
+      auditConversation(supabase, closedPrevious.id, process.env).catch((err) =>
+        log("error", "WhatsApp", `Error en auditoría async: ${err.message}`)
+      );
+    }
+
+    // 4. Guardar mensaje del usuario
+    await saveMessage(supabase, {
+      conversationId: conversation.id,
+      role: "usuario",
+      content: messageData.text,
+      metadata: { whatsapp_msg_id: messageData.messageId, contact_name: messageData.contactName },
+    });
+
+    // 5. Obtener historial para contexto de IA
+    const history = await getConversationHistory(supabase, conversation.id, 15);
+
+    // 6. Procesar con María (chatService)
+    const result = await processChatMessage(messageData.text, history, process.env);
+
+    // 7. Guardar respuesta de María
+    await saveMessage(supabase, {
+      conversationId: conversation.id,
+      role: "asistente",
+      content: result.response,
+      metadata: { source: result.source },
+    });
+
+    // 8. Enviar respuesta por WhatsApp
+    await sendTextMessage(messageData.from, result.response, process.env);
+
+    log("info", "WhatsApp", `✅ Respuesta enviada a ${messageData.contactName} (${result.source})`);
+
+  } catch (error) {
+    log("error", "WhatsApp", `Error procesando mensaje: ${error.message}`);
+    // Intentar enviar un mensaje de error al usuario
+    try {
+      const msgData = extractMessageData(req.body);
+      if (msgData?.from) {
+        await sendTextMessage(
+          msgData.from,
+          "Disculpá, tuve un problema técnico momentáneo. ¿Podrías repetir tu mensaje? 🙏",
+          process.env
+        );
+      }
+    } catch (e) {
+      log("error", "WhatsApp", `Error enviando mensaje de error: ${e.message}`);
+    }
+  }
+});
+
+// ============================================
 // RUTA PRINCIPAL - SIRVE EL FRONTEND
 // ============================================
 
@@ -568,16 +684,18 @@ process.on("uncaughtException", (error) => {
 // ============================================
 
 app.listen(PORT, () => {
-  console.log("╔════════════════════════════════════════════════════════╗");
-  console.log("║                                                        ║");
-  console.log("║   🎮 VIRTUAL LIFE - Servidor v6.0.0 Iniciado          ║");
-  console.log("║                                                        ║");
-  console.log(`║   🌐 URL: http://localhost:${PORT}                       ║`);
-  console.log(`║   🏗️  Entorno: ${NODE_ENV.padEnd(42)}║`);
-  console.log("║   📡 API: /api/health, /api/chat-status               ║");
-  console.log("║   🤖 Chat: Gemini 3.1 principal · 2.5 respaldo         ║");
-  console.log("║                                                        ║");
-  console.log("╚════════════════════════════════════════════════════════╝");
+  console.log("╔════════════════════════════════════════════════════════════╗");
+  console.log("║                                                            ║");
+  console.log("║   🎮 VIRTUAL LIFE - Servidor v7.0.0 Iniciado              ║");
+  console.log("║                                                            ║");
+  console.log(`║   🌐 URL: http://localhost:${PORT}                           ║`);
+  console.log(`║   🏗️  Entorno: ${NODE_ENV.padEnd(46)}║`);
+  console.log("║   📡 API: /api/health, /api/chat-status                   ║");
+  console.log("║   🤖 Chat: Gemini 3.1 principal · 2.5 respaldo             ║");
+  console.log("║   📱 WhatsApp: Webhook activo en /api/webhook/whatsapp     ║");
+  console.log("║   📊 Auditoría: Evaluación automática con IA               ║");
+  console.log("║                                                            ║");
+  console.log("╚════════════════════════════════════════════════════════════╝");
 });
 
 
